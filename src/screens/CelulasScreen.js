@@ -739,66 +739,96 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
         {conteudos.length > 0 ? (
           conteudos.map((conteudo) => {
             const icone = getIconePorLink(conteudo.link_externo);
+            const tipoIcone = icone === '🎥' ? 'video' : icone === '🎧' ? 'audio' : icone === '📄' ? 'documento' : 'link';
 
             return (
-              <View key={conteudo.id} style={styles.conteudoCard}>
-                <View style={styles.conteudoCardHeader}>
-                  <Text style={styles.conteudoCardIcon}>{icone}</Text>
-                  <Text style={styles.conteudoCardTitulo} numberOfLines={2}>
-                    {conteudo.titulo}
-                  </Text>
+              <View key={conteudo.id} style={[styles.feedCard, { borderLeftColor: tipoIcone === 'video' ? '#EF4444' : tipoIcone === 'audio' ? '#8B5CF6' : tipoIcone === 'documento' ? '#F59E0B' : '#3B82F6' }]}>
+                {/* Header com ícone grande + título + ações */}
+                <View style={styles.feedCardHeader}>
+                  <View style={styles.feedCardIconArea}>
+                    <Text style={styles.feedCardIcon}>{icone}</Text>
+                  </View>
+                  <View style={styles.feedCardTituloArea}>
+                    <Text style={styles.feedCardTitulo} numberOfLines={2}>
+                      {conteudo.titulo || 'Sem título'}
+                    </Text>
+                  </View>
                   {podeGerenciar && (
-                    <>
+                    <View style={styles.feedCardAcoes}>
                       <TouchableOpacity
-                        style={styles.conteudoCardEditarBtn}
+                        style={styles.feedCardBtnAcao}
                         onPress={() => handleAbrirEdicao(conteudo)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Text style={styles.conteudoCardEditarText}>✏️</Text>
+                        <Text style={styles.feedCardBtnAcaoText}>✏️</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.conteudoCardExcluirBtn}
+                        style={styles.feedCardBtnAcao}
                         onPress={() => {
-                          Alert.alert(
-                            'Excluir Conteúdo',
-                            'Tem certeza que deseja apagar este material?',
-                            [
-                              { text: 'Cancelar', style: 'cancel' },
-                              {
-                                text: 'Excluir',
-                                style: 'destructive',
-                                onPress: async () => {
-                                  try {
-                                    await removerConteudoEnsino(celulaId, conteudo);
-                                  } catch (error) {
-                                    Alert.alert('Erro', 'Não foi possível excluir o conteúdo.');
-                                  }
-                                },
-                              },
-                            ]
-                          );
+                          Alert.alert('Excluir Conteúdo', 'Tem certeza que deseja apagar este material?', [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Excluir', style: 'destructive', onPress: async () => {
+                              try { await removerConteudoEnsino(celulaId, conteudo); }
+                              catch (error) { Alert.alert('Erro', 'Não foi possível excluir.'); }
+                            }},
+                          ]);
                         }}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Text style={styles.conteudoCardExcluirText}>🗑️</Text>
+                        <Text style={styles.feedCardBtnAcaoText}>🗑️</Text>
                       </TouchableOpacity>
-                    </>
+                    </View>
                   )}
                 </View>
+
+                {/* Mensagem (estilo quote) */}
                 {conteudo.mensagem ? (
-                  <Text style={styles.conteudoCardMensagem}>{conteudo.mensagem}</Text>
+                  <View style={styles.feedCardMensagemArea}>
+                    <Text style={styles.feedCardMensagemIcon}>📝</Text>
+                    <Text style={styles.feedCardMensagem} numberOfLines={4}>
+                      {conteudo.mensagem}
+                    </Text>
+                  </View>
                 ) : null}
+
+                {/* Botão de ação principal */}
                 {conteudo.link_externo ? (
                   <TouchableOpacity
-                    style={styles.conteudoCardBtn}
+                    style={[styles.feedCardBtnPrincipal, {
+                      backgroundColor: tipoIcone === 'video' ? '#EF4444' : tipoIcone === 'audio' ? '#8B5CF6' : tipoIcone === 'documento' ? '#F59E0B' : '#3B82F6',
+                    }]}
                     onPress={() => handleAbrirLink(conteudo.link_externo)}
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
                   >
-                    <Text style={styles.conteudoCardBtnText}>
-                      {icone === '🎥' ? '🎬 Assistir' : icone === '🎧' ? '🎧 Ouvir' : '🔗 Acessar Material'}
+                    <Text style={styles.feedCardBtnPrincipalIcon}>
+                      {tipoIcone === 'video' ? '▶️' : tipoIcone === 'audio' ? '🎵' : tipoIcone === 'documento' ? '📄' : '🔗'}
+                    </Text>
+                    <Text style={styles.feedCardBtnPrincipalText}>
+                      {tipoIcone === 'video' ? 'Assistir Aula' : tipoIcone === 'audio' ? 'Ouvir Áudio' : tipoIcone === 'documento' ? 'Ler Material' : 'Acessar Link'}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
+
+                {/* Rodapé com data */}
+                <View style={styles.feedCardFooter}>
+                  <Text style={styles.feedCardData}>
+                    {conteudo.criadoEm ? (() => {
+                      const d = new Date(conteudo.criadoEm);
+                      const agora = new Date();
+                      const diffDias = Math.floor((agora - d) / (1000 * 60 * 60 * 24));
+                      if (diffDias === 0) return 'Hoje';
+                      if (diffDias === 1) return 'Ontem';
+                      if (diffDias < 7) return `Há ${diffDias} dias`;
+                      if (diffDias < 30) return `Há ${Math.floor(diffDias / 7)} sem`;
+                      return d.toLocaleDateString('pt-BR');
+                    })() : ''}
+                  </Text>
+                  <View style={styles.feedCardTipoBadge}>
+                    <Text style={styles.feedCardTipoBadgeText}>
+                      {tipoIcone === 'video' ? '🎬 Vídeo' : tipoIcone === 'audio' ? '🎧 Áudio' : tipoIcone === 'documento' ? '📄 Estudo' : '🔗 Link'}
+                    </Text>
+                  </View>
+                </View>
               </View>
             );
           })
@@ -1856,71 +1886,113 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
-  // Cartão de Conteúdo
-  conteudoCard: {
-    backgroundColor: COLORS.gray50,
+  // Feed de Conteúdo (novo estilo)
+  feedCard: {
+    backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
+    borderLeftWidth: 4,
+    ...SHADOWS.sm,
   },
-  conteudoCardHeader: {
+  feedCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: SPACING.sm,
   },
-  conteudoCardIcon: {
-    fontSize: 20,
+  feedCardIconArea: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: COLORS.gray50,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: SPACING.sm,
   },
-  conteudoCardTitulo: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: '600',
-    color: COLORS.gray800,
-    flex: 1,
+  feedCardIcon: {
+    fontSize: 22,
   },
-  conteudoCardMensagem: {
+  feedCardTituloArea: {
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  feedCardTitulo: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: '700',
+    color: COLORS.gray800,
+    lineHeight: 22,
+  },
+  feedCardAcoes: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  feedCardBtnAcao: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: COLORS.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  feedCardBtnAcaoText: {
+    fontSize: 13,
+  },
+  feedCardMensagemArea: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.gray50,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary + '40',
+  },
+  feedCardMensagemIcon: {
+    fontSize: 14,
+    marginRight: SPACING.sm,
+    marginTop: 2,
+  },
+  feedCardMensagem: {
+    flex: 1,
     fontSize: FONTS.sizes.sm,
     color: COLORS.gray600,
     lineHeight: 20,
+  },
+  feedCardBtnPrincipal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.md,
+    paddingVertical: 10,
+    gap: 8,
     marginBottom: SPACING.sm,
   },
-  conteudoCardBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.full,
-    paddingVertical: 8,
-    paddingHorizontal: SPACING.md,
-    alignSelf: 'flex-start',
+  feedCardBtnPrincipalIcon: {
+    fontSize: 16,
   },
-  conteudoCardBtnText: {
+  feedCardBtnPrincipalText: {
     color: COLORS.white,
     fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  conteudoCardEditarBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary + '12',
-    justifyContent: 'center',
+  feedCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginLeft: SPACING.sm,
   },
-  conteudoCardEditarText: {
-    fontSize: 14,
+  feedCardData: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray400,
   },
-  conteudoCardExcluirBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.danger + '12',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: SPACING.sm,
+  feedCardTipoBadge: {
+    backgroundColor: COLORS.gray100,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
   },
-  conteudoCardExcluirText: {
-    fontSize: 14,
+  feedCardTipoBadgeText: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray500,
+    fontWeight: '500',
   },
   semEnsino: {
     alignItems: 'center',
