@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // 👑 CORRIGIDO: peterdonie (com R)
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == "peterdonie@gmail.com"; 
+    }
+
+    function isMinistroVerificado() {
+      let perfil = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return perfil.endossos_uids.size() >= 5 || perfil.get('verificado_lideranca', false) == true;
+    }
+
+    // 1. USUÁRIOS
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.auth.uid == userId;
+      allow update: if isAuth() && (
+        request.auth.uid == userId || 
+        isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endossos_uids', 'endossos_timestamps', 'endossado_por_admin', 'verificado_lideranca', 'celulas_inscritas'])
+      );
+      allow delete: if (isAuth() && request.auth.uid == userId) || isAdmin();
+    }
+
+    // 2. PEDIDOS DE ORAÇÃO
+    match /pedidos_oracao/{pedidoId} {
+      allow read;   
+      allow create: if isAuth() && request.resource.data.autor_id == request.auth.uid;
+      allow update: if isAuth();
+      allow delete: if (isAuth() && request.auth.uid == resource.data.autor_id) || isAdmin();
+
+      match /mensagens_apoio/{mensagemId} {
+        allow read: if true; 
+        allow create: if isAuth();
+        allow update: if isAuth() && request.auth.uid == resource.data.autor_id;
+        allow delete: if isAuth() && (
+          request.auth.uid == resource.data.autor_id || 
+          request.auth.uid == get(/databases/$(database)/documents/pedidos_oracao/$(pedidoId)).data.autor_id ||
+          isAdmin()
+        );
+      }
+    }
+
+    // 3. CÉLULAS
+    match /celulas/{celulaId} {
+      allow read: if true;
+      allow create: if isAuth() && isMinistroVerificado(); 
+      allow update: if isAuth();
+      allow delete: if (isAuth() && request.auth.uid == resource.data.lider_id) || isAdmin();
+    }
+
+    // 4. CONFIGURAÇÕES (CORRIGIDO: permite escrita para admin E leitura para logados)
+    match /configuracoes/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin(); 
+    }
+    
+    // 5. DENÚNCIAS
+    match /denuncias/{denuncia} {
+      allow create: if isAuth();
+      allow read, delete: if (isAuth() && request.auth.uid == resource.data.denunciante_id) || isAdmin();
+      allow update: if false; 
+    }
+    
+    // 6. TESTEMUNHOS
+    match /testemunhos/{testemunhoId} {
+      allow read: if true; 
+      allow create: if isAuth() && request.resource.data.autor_id == request.auth.uid;
+      allow update: if isAuth(); 
+      allow delete: if (isAuth() && request.auth.uid == resource.data.autor_id) || isAdmin();
+
+      match /mensagens_apoio/{mensagemId} {
+        allow read: if true; 
+        allow create: if isAuth();
+        allow update: if isAuth() && request.auth.uid == resource.data.autor_id;
+        allow delete: if isAuth() && (
+          request.auth.uid == resource.data.autor_id || 
+          request.auth.uid == get(/databases/$(database)/documents/testemunhos/$(testemunhoId)).data.autor_id ||
+          isAdmin()
+        );
+      }
+    }
+
+    // 7. NOTIFICAÇÕES
+    match /notificacoes/{notificacaoId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAuth() && resource.data.destinatario_id == request.auth.uid;
+    }
+
+    // 8. SUPORTE
+    match /suporte/{docId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // 🆕 9. CATEGORIAS DE PEDIDOS (gerenciado pelo dashboard)
+    match /categorias_pedidos/{categoriaId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // 10. TÍTULOS MINISTERIAIS
+    match /titulos_ministeriais/{tituloId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // ✅ 11. ANÚNCIOS / BANNERS (NOVO!)
+    match /anuncios/{anuncioId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// ============================================================
+// REGRAS DO FIREBASE STORAGE
+// ============================================================
+// IMPORTANTE: Estas regras são SEPARADAS das regras do Firestore.
+// No Firebase Console, acesse: Storage > Regras e cole este conteúdo.
+// ============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 📁 Pasta de anúncios
+    // Admin pode fazer upload e deletar. Usuários logados podem ler.
+    match /anuncios/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+                    && request.auth.token.email == "peterdonie@gmail.com";
+    }
+
+    // 📁 Demais arquivos
+    // Liberado para leitura pública, escrita apenas para admin
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null 
+                    && request.auth.token.email == "peterdonie@gmail.com";
+    }
+  }
+}

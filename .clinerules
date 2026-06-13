@@ -1,0 +1,9 @@
+CRITICAL SYSTEM RULES FOR CLINE OPERATION:
+
+1. STRICT BAN ON SEARCH TOOLS: You are STRICTLY FORBIDDEN from using `search_files`, grep, regex, or any keyword search tools to locate code. This is non-negotiable, as searching causes critical context errors and breaks the code structure.
+
+2. MANDATORY USE OF READ_FILE: You MUST use the `read_file` tool to inspect and understand the code before proposing or applying any edits.
+
+3. CHUNK READING IS ALLOWED: You are ALLOWED and ENCOURAGED to use line limits (e.g., reading lines 1-150, then 151-300) with the `read_file` tool to manage your context window. 
+
+4. NO GUESSWORK: Rely exclusively on reading the actual lines of code via `read_file` to find the blocks you need to edit. Never try to bypass reading by using search queries.
