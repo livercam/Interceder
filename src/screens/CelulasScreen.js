@@ -804,7 +804,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                       {tipoIcone === 'video' ? '▶️' : tipoIcone === 'audio' ? '🎵' : tipoIcone === 'documento' ? '📄' : '🔗'}
                     </Text>
                     <Text style={styles.feedCardBtnPrincipalText}>
-                      {tipoIcone === 'video' ? 'Assistir Aula' : tipoIcone === 'audio' ? 'Ouvir Áudio' : tipoIcone === 'documento' ? 'Ler Material' : 'Acessar Link'}
+                      {tipoIcone === 'video' ? 'Assistir' : tipoIcone === 'audio' ? 'Ouvir' : tipoIcone === 'documento' ? 'Ler' : 'Acessar'}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
