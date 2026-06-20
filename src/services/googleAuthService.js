@@ -136,7 +136,12 @@ export const signInWithGoogle = async () => {
       verificado_lideranca: false,
       stats: {
         oracoes_feitas: 0,
-        dias_seguidos: 0,
+        oracoes_hoje: 0,
+        minutos_semana: 0,
+        ultima_oracao_data: '',
+        ultima_oracao_semana: '',
+        testemunhos: 0,
+        endossos_recebidos: 0,
       },
       is_admin: false,
       termos_aceitos: true,

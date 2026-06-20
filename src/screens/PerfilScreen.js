@@ -4,7 +4,7 @@
 // - Menu de opções: Editar Perfil, Ofertas, FAQ
 // - Design vibrante com tratamento de estados de carregamento
 
-import React, { useCallback, useState, useEffect, useLayoutEffect } from 'react';
+import React, { useCallback, useLayoutEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,55 +13,41 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
-import { db } from '../services/firebaseConfig';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { COLLECTIONS } from '../constants/firestore';
 import { logoutUser } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
 import { useAlert } from '../contexts/AlertContext';
 import KebabMenu from '../components/KebabMenu';
 import { formatarNomeCurto } from '../utils/formatters';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
+import { COLLECTIONS } from '../constants/firestore';
 
 // ============================================================
-// Componente de Selo de Confiança (Badge de Endossos)
+// Helper para montar lista de distintivos (exceto título ministerial)
 // ============================================================
-function SeloConfianca({ totalEndossos, endossadoPorAdmin }) {
-  if (endossadoPorAdmin) {
-    return (
-      <View style={[styles.seloBase, styles.seloAdmin]}>
-        <Text style={styles.seloAdminText}>✔️ Verificado pela Liderança</Text>
-      </View>
-    );
+function getDistintivos(userProfile, contagemReal) {
+  const lista = [];
+
+  const total = contagemReal;
+  if (userProfile?.endossado_por_admin) {
+    lista.push({ emoji: '✔️', dica: 'Verificado pela Liderança', cor: '#10B981' });
+  } else if (total >= 50) {
+    lista.push({ emoji: '🏆', dica: 'Líder Espiritual', cor: '#F59E0B' });
+  } else if (total >= 20) {
+    lista.push({ emoji: '🛡️', dica: 'Coluna da Igreja', cor: '#64748B' });
+  } else if (total >= 5) {
+    lista.push({ emoji: '🤝', dica: 'Intercessor Acolhedor', cor: '#22C55E' });
   }
 
-  if (totalEndossos >= 50) {
-    return (
-      <View style={[styles.seloBase, styles.seloOuro]}>
-        <Text style={styles.seloOuroText}>🏆 Líder Espiritual</Text>
-      </View>
-    );
+  if (userProfile?.isPremium === true) {
+    lista.push({ emoji: '💎', dica: 'Membro Apoiador', cor: '#F59E0B' });
   }
 
-  if (totalEndossos >= 20) {
-    return (
-      <View style={[styles.seloBase, styles.seloPrata]}>
-        <Text style={styles.seloPrataText}>🛡️ Coluna da Igreja</Text>
-      </View>
-    );
-  }
-
-  if (totalEndossos >= 5) {
-    return (
-      <View style={[styles.seloBase, styles.seloBronze]}>
-        <Text style={styles.seloBronzeText}>🤝 Intercessor Acolhedor</Text>
-      </View>
-    );
-  }
-
-  return null;
+  return lista;
 }
 
 const TITULOS_MINISTERIAIS = [
@@ -80,33 +66,7 @@ export default function PerfilScreen({ navigation }) {
   const fotoPerfil = userProfile?.foto_url || user?.photoURL || null;
   const { showAlert } = useAlert();
 
-  const [ehLider, setEhLider] = useState(false);
-  const [carregandoLideranca, setCarregandoLideranca] = useState(true);
   const [imagemComErro, setImagemComErro] = useState(false);
-  
-
-  useEffect(() => {
-    const verificarLideranca = async () => {
-      if (!user?.uid) {
-        setCarregandoLideranca(false);
-        return;
-      }
-      try {
-        const celulasQuery = query(
-          collection(db, COLLECTIONS.CELULAS),
-          where('lider_id', '==', user.uid)
-        );
-        const celulasSnap = await getDocs(celulasQuery);
-        setEhLider(!celulasSnap.empty);
-      } catch (error) {
-        console.warn('[Perfil] Erro ao verificar liderança:', error.message);
-        setEhLider(false);
-      } finally {
-        setCarregandoLideranca(false);
-      }
-    };
-    verificarLideranca();
-  }, [user?.uid]);
 
   const handleLogout = useCallback(() => {
     showAlert({
@@ -134,6 +94,11 @@ export default function PerfilScreen({ navigation }) {
       ],
     });
   }, [showAlert]);
+
+
+  const handleMostrarDistintivo = useCallback((dica) => {
+    Alert.alert('🏅 Conquista', dica);
+  }, []);
 
   if (isLoading) {
     return (
@@ -183,16 +148,24 @@ export default function PerfilScreen({ navigation }) {
     );
   }
 
-  const stats = userProfile.stats || { oracoes_feitas: 0, dias_seguidos: 0 };
+  const stats = userProfile.stats || {
+    oracoes_feitas: 0,
+    oracoes_hoje: 0,
+    minutos_semana: 0,
+    testemunhos: 0,
+    endossos_recebidos: 0,
+  };
 
   const isReconhecido =
-    (userProfile?.endossos_uids?.length || 0) >= 5 || userProfile?.verificado_lideranca === true;
+    (stats.endossos_recebidos || 0) >= 5 || userProfile?.verificado_lideranca === true;
 
-  const contagemReal = userProfile?.endossos_uids?.length || 0;
+  const contagemReal = stats.endossos_recebidos || 0;
 
   const tituloLabel = TITULOS_MINISTERIAIS.find(
     (t) => t.value === userProfile?.titulo_ministerial
   )?.label || 'Membro';
+
+  const distintivos = getDistintivos(userProfile, contagemReal);
 
   // ============================================================
   // KebabMenu no header (nativo)
@@ -238,98 +211,107 @@ export default function PerfilScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* HEADER — Card / Quadro de Perfil */}
+        {/* HEADER — Card / Quadro de Perfil em duas colunas */}
         <View style={styles.headerCard}>
-          <View style={styles.headerContent}>
-            <View style={styles.fotoWrapper}>
-              {fotoPerfil && !imagemComErro ? (
-                <Image
-                  source={{ uri: fotoPerfil }}
-                  style={styles.fotoPerfil}
-                  onError={() => setImagemComErro(true)}
-                />
+          <View style={styles.headerRow}>
+            {/* Coluna Esquerda: Foto + Nome + Título */}
+            <View style={styles.headerLeft}>
+              <View style={styles.fotoWrapper}>
+                {fotoPerfil && !imagemComErro ? (
+                  <Image
+                    source={{ uri: fotoPerfil }}
+                    style={styles.fotoPerfil}
+                    onError={() => setImagemComErro(true)}
+                  />
+                ) : (
+                  <View style={styles.avatarContainer}>
+                    <Text style={styles.avatarText}>
+                      {userProfile.nome?.charAt(0)?.toUpperCase() || '?'}
+                    </Text>
+                  </View>
+                )}
+                {(!imagemComErro || fotoPerfil) && (
+                <TouchableOpacity
+                  style={styles.cameraBadge}
+                  activeOpacity={0.8}
+                  onPress={() => {}}
+                >
+                  <Ionicons name="camera" size={14} color={COLORS.primary} />
+                </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.nomeRow}>
+                <Text style={styles.nome}>{formatarNomeCurto(userProfile.nome) || 'Usuário'}</Text>
+                {userProfile.isPremium === true && (
+                  <Text style={styles.seloPremium}>💎</Text>
+                )}
+              </View>
+
+              {/* Título Ministerial (badge horizontal - estilo PublicProfile) */}
+              {!isReconhecido ? (
+                <View style={[styles.tituloTag, styles.tituloTagNaoVerificado]}>
+                  <Text style={[styles.tituloTagText, styles.tituloTagTextNaoVerificado]}>{tituloLabel}</Text>
+                  <Text style={{ fontSize: 12, marginLeft: 4 }}>⚠️</Text>
+                </View>
+              ) : userProfile?.verificado_lideranca === true ? (
+                <View style={[styles.tituloTag, styles.tituloTagVerificadoLideranca]}>
+                  <Text style={[styles.tituloTagText, styles.tituloTagTextVerificadoLideranca]}>{tituloLabel}</Text>
+                  <Text style={{ fontSize: 12, marginLeft: 4 }}>🛡️</Text>
+                </View>
               ) : (
-                <View style={styles.avatarContainer}>
-                  <Text style={styles.avatarText}>
-                    {userProfile.nome?.charAt(0)?.toUpperCase() || '?'}
-                  </Text>
+                <View style={[styles.tituloTag, styles.tituloTagVerificadoComunidade]}>
+                  <Text style={[styles.tituloTagText, styles.tituloTagTextVerificadoComunidade]}>{tituloLabel}</Text>
+                  <Text style={{ fontSize: 12, marginLeft: 4 }}>✅</Text>
                 </View>
               )}
-              {/* Ícone de câmera sobreposto */}
-              {/* Only show camera badge if imagemComErro is false or if fotoPerfil exists */}
-              {(!imagemComErro || fotoPerfil) && (
-              <TouchableOpacity
-                style={styles.cameraBadge}
-                activeOpacity={0.8}
-                onPress={() => {
-                  // Futuro: abrir seletor de foto
-                }}
-              >
-                <Ionicons name="camera" size={16} color={COLORS.primary} />
-              </TouchableOpacity>
-              )}
-            </View>
-            <View style={styles.nomeRow}>
-              <Text style={styles.nome}>{formatarNomeCurto(userProfile.nome) || 'Usuário'}</Text>
-              {userProfile.isPremium === true && (
-                <Text style={styles.seloPremium}>💎</Text>
-              )}
             </View>
 
-            {!isReconhecido ? (
-              <View style={[styles.tituloTag, styles.tituloTagNaoVerificado]}>
-                <Text style={[styles.tituloTagText, styles.tituloTagTextNaoVerificado]}>
-                  {tituloLabel}
-                </Text>
-                <Text style={styles.tituloBadgeNaoVerificado}> ⚠️</Text>
-              </View>
-            ) : userProfile?.verificado_lideranca === true ? (
-              <View style={[styles.tituloTag, styles.tituloTagVerificadoLideranca]}>
-                <Text style={[styles.tituloTagText, styles.tituloTagTextVerificadoLideranca]}>
-                  {tituloLabel}
-                </Text>
-                <Text style={styles.tituloBadgeVerificadoLideranca}> 🛡️</Text>
-              </View>
-            ) : (
-              <View style={[styles.tituloTag, styles.tituloTagVerificadoComunidade]}>
-                <Text style={[styles.tituloTagText, styles.tituloTagTextVerificadoComunidade]}>
-                  {tituloLabel}
-                </Text>
-                <Text style={styles.tituloBadgeVerificadoComunidade}> ✅</Text>
-              </View>
-            )}
-
-            <SeloConfianca
-              totalEndossos={contagemReal}
-              endossadoPorAdmin={userProfile.endossado_por_admin === true}
-            />
-
-            {userProfile.isPremium === true && (
-              <View style={styles.premiumBadge}>
-                <Text style={styles.premiumBadgeText}>💎 Membro Apoiador</Text>
+            {/* Coluna Direita: Distintivos empilhados verticalmente */}
+            {distintivos.length > 0 && (
+              <View style={styles.headerRight}>
+                {distintivos.map((dist, index) => (
+                  <TouchableOpacity key={index} style={styles.distintivoCol} onPress={() => handleMostrarDistintivo(dist.dica)} activeOpacity={0.7}>
+                    <View style={[styles.distintivo, { backgroundColor: dist.cor + '20', borderColor: dist.cor }]}>
+                      <Text style={styles.distintivoEmoji}>{dist.emoji}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
         </View>
 
-        {/* ESTATÍSTICAS */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>📊 Estatísticas</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.oracoes_feitas}</Text>
-              <Text style={styles.statLabel}>Orações Feitas</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.minutos_semana || 0}</Text>
-              <Text style={styles.statLabel}>Tempo de Oração</Text>
-            </View>
+        {/* ESTATÍSTICAS COMPACTAS */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statEmoji}>🙏</Text>
+            <Text style={styles.statNumber}>{stats.oracoes_feitas}</Text>
+            <Text style={styles.statLabel}>orações</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statEmoji}>⏱️</Text>
+            <Text style={styles.statNumber}>{stats.minutos_semana || 0}</Text>
+            <Text style={styles.statLabel}>min</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statEmoji}>🕊️</Text>
+            <Text style={styles.statNumber}>{stats.testemunhos || 0}</Text>
+            <Text style={styles.statLabel}>test.</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statEmoji}>🔥</Text>
+            <Text style={[styles.statNumber, { color: '#C2410C' }]}>{stats.oracoes_hoje || 0}</Text>
+            <Text style={styles.statLabel}>hoje</Text>
           </View>
         </View>
 
         {/* MENU DE OPÇÕES */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>⚙️ Opções</Text>
+          <View style={{ height: SPACING.sm }} />
 
           <TouchableOpacity
             style={[styles.menuItem, styles.menuItemPremium]}
@@ -431,24 +413,30 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
     overflow: 'hidden',
   },
-  headerContent: {
-    alignItems: 'center',
+  headerRow: {
+    flexDirection: 'row',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.xl,
     paddingBottom: SPACING.lg,
-    position: 'relative',
   },
-  fotoWrapper: { position: 'relative', marginBottom: SPACING.md },
-  fotoPerfil: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: COLORS.primary },
-  avatarContainer: { width: 120, height: 120, borderRadius: 60, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
-  avatarText: { color: COLORS.white, fontSize: 48, fontWeight: 'bold' },
+  headerLeft: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Foto
+  fotoWrapper: { position: 'relative', marginBottom: SPACING.sm },
+  fotoPerfil: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: COLORS.primary },
+  avatarContainer: { width: 100, height: 100, borderRadius: 50, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
+  avatarText: { color: COLORS.white, fontSize: 40, fontWeight: 'bold' },
   cameraBadge: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: 2,
+    right: 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
@@ -456,45 +444,92 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     ...SHADOWS.sm,
   },
-  nomeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.sm },
-  nome: { fontSize: FONTS.sizes.xxl, fontWeight: 'bold', color: COLORS.gray800 },
-  seloPremium: { fontSize: 22, marginLeft: SPACING.sm },
-  premiumBadge: { backgroundColor: '#FEF3C7', borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, marginTop: SPACING.sm, borderWidth: 1, borderColor: '#F59E0B' },
-  premiumBadgeText: { fontSize: FONTS.sizes.sm, color: '#92400E', fontWeight: '700' },
 
-  // Título Ministerial
-  tituloTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: RADIUS.full, borderWidth: 1.5 },
+  // Nome
+  nomeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.sm },
+  nome: { fontSize: FONTS.sizes.xl, fontWeight: 'bold', color: COLORS.gray800 },
+  seloPremium: { fontSize: 18, marginLeft: SPACING.xs },
+
+  // Título Ministerial (badge horizontal - estilo PublicProfile)
+  tituloTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs + 2,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+  },
   tituloTagNaoVerificado: { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
-  tituloTagTextNaoVerificado: { color: '#888', fontWeight: '600' },
-  tituloBadgeNaoVerificado: { fontSize: FONTS.sizes.sm },
+  tituloTagTextNaoVerificado: { color: '#6B7280', fontWeight: '600' },
   tituloTagVerificadoComunidade: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
   tituloTagTextVerificadoComunidade: { color: '#1D4ED8', fontWeight: '700' },
-  tituloBadgeVerificadoComunidade: { fontSize: FONTS.sizes.sm },
   tituloTagVerificadoLideranca: { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' },
   tituloTagTextVerificadoLideranca: { color: '#92400E', fontWeight: '800' },
-  tituloBadgeVerificadoLideranca: { fontSize: FONTS.sizes.sm },
   tituloTagText: { fontSize: FONTS.sizes.sm, fontWeight: '700' },
 
-  // Selos
-  seloBase: { borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs + 1, marginTop: SPACING.sm, borderWidth: 1.5 },
-  seloAdmin: { backgroundColor: '#ECFDF5', borderColor: '#10B981' },
-  seloAdminText: { fontSize: FONTS.sizes.sm, color: '#065F46', fontWeight: '800' },
-  seloOuro: { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' },
-  seloOuroText: { fontSize: FONTS.sizes.sm, color: '#92400E', fontWeight: '800' },
-  seloPrata: { backgroundColor: '#F1F5F9', borderColor: '#64748B' },
-  seloPrataText: { fontSize: FONTS.sizes.sm, color: '#334155', fontWeight: '800' },
-  seloBronze: { backgroundColor: '#F0FDF4', borderColor: '#22C55E' },
-  seloBronzeText: { fontSize: FONTS.sizes.sm, color: '#166534', fontWeight: '800' },
+  // Distintivos
+  headerRight: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    paddingLeft: SPACING.md,
+  },
+  distintivoCol: {
+    alignItems: 'center',
+  },
+  distintivo: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2.5,
+  },
+  distintivoEmoji: {
+    fontSize: 22,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
 
-  // Seções
-  sectionTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.gray800, marginBottom: SPACING.md },
-
-  // Estatísticas
-  statsSection: { marginHorizontal: SPACING.lg, marginTop: SPACING.xl, marginBottom: SPACING.md },
-  statsRow: { flexDirection: 'row', gap: SPACING.sm },
-  statCard: { flex: 1, backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: SPACING.lg, alignItems: 'center', ...SHADOWS.md },
-  statNumber: { fontSize: FONTS.sizes.xxxl, fontWeight: 'bold', color: COLORS.primary, marginBottom: SPACING.xs },
-  statLabel: { fontSize: FONTS.sizes.sm, color: COLORS.gray500, textAlign: 'center' },
+  // Estatísticas Compactas
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.md,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statEmoji: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  statNumber: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  statLabel: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray500,
+    marginTop: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: COLORS.gray200,
+  },
 
   // Menu de Opções
   menuSection: { marginHorizontal: SPACING.lg, marginBottom: SPACING.md },

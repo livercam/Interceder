@@ -302,6 +302,7 @@ function CriarPedidoModal({ visible, onClose, onCriar, celulasDisponiveis, categ
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: SPACING.xxl }}
             >
             {/* Header do Modal */}
             <View style={styles.modalHeader}>

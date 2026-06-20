@@ -23,7 +23,7 @@ service cloud.firestore {
       allow update: if isAuth() && (
         request.auth.uid == userId || 
         isAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endossos_uids', 'endossos_timestamps', 'endossado_por_admin', 'verificado_lideranca', 'celulas_inscritas'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endossos_uids', 'endossos_timestamps', 'endossado_por_admin', 'verificado_lideranca', 'celulas_inscritas', 'stats'])
       );
       allow delete: if (isAuth() && request.auth.uid == userId) || isAdmin();
     }

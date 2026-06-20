@@ -111,7 +111,7 @@ function CriarCelulaModal({ visible, onClose, onCriar }) {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: SPACING.xxl }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nova Célula</Text>
               <TouchableOpacity onPress={handleClose} style={styles.modalCloseBtn}>
@@ -285,7 +285,7 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: SPACING.xxl }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {ehEdicao ? '✏️ Editar Feed' : '📖 Novo Feed'}
@@ -513,6 +513,12 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const handleAbrirLink = (url) => {
     if (!url) return;
 
+    // Garantir que o link tenha protocolo https://
+    let link = url.trim();
+    if (!link.startsWith('http://') && !link.startsWith('https://')) {
+      link = 'https://' + link;
+    }
+
     Alert.alert(
       'Saindo do aplicativo',
       'Você está prestes a abrir um link externo. Deseja continuar?',
@@ -522,14 +528,9 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
           text: 'OK',
           onPress: async () => {
             try {
-              const podeAbrir = await Linking.canOpenURL(url);
-              if (podeAbrir) {
-                await Linking.openURL(url);
-              } else {
-                Alert.alert('Link inválido', 'Não foi possível abrir este link.');
-              }
+              await Linking.openURL(link);
             } catch (error) {
-              Alert.alert('Erro', 'Ocorreu um erro ao tentar abrir o link.');
+              Alert.alert('Erro', 'Não foi possível abrir o link. Verifique se o link é válido.');
             }
           },
         },
@@ -742,7 +743,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
             const tipoIcone = icone === '🎥' ? 'video' : icone === '🎧' ? 'audio' : icone === '📄' ? 'documento' : 'link';
 
             return (
-              <View key={conteudo.id} style={[styles.feedCard, { borderLeftColor: tipoIcone === 'video' ? '#EF4444' : tipoIcone === 'audio' ? '#8B5CF6' : tipoIcone === 'documento' ? '#F59E0B' : '#3B82F6' }]}>
+              <View key={conteudo.id} style={[styles.feedCard, { borderColor: tipoIcone === 'video' ? '#EF4444' : tipoIcone === 'audio' ? '#8B5CF6' : tipoIcone === 'documento' ? '#F59E0B' : '#3B82F6' }]}>
                 {/* Header com ícone grande + título + ações */}
                 <View style={styles.feedCardHeader}>
                   <View style={styles.feedCardIconArea}>
@@ -1839,12 +1840,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Ensino - Mural de Conteúdos
+  // Ensino - Mural de Conteúdos (largura total)
   ensinoSection: {
     backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
+    marginHorizontal: 0,
+    borderRadius: 0,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
     ...SHADOWS.md,
     marginBottom: SPACING.md,
   },
@@ -1886,19 +1888,21 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
-  // Feed de Conteúdo (novo estilo)
+  // Feed de Conteúdo (largura total)
   feedCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: 0,
     marginBottom: SPACING.sm,
-    borderLeftWidth: 4,
+    borderWidth: 2,
     ...SHADOWS.sm,
   },
   feedCardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.md,
   },
   feedCardIconArea: {
     width: 40,
@@ -1940,8 +1944,9 @@ const styles = StyleSheet.create({
   feedCardMensagemArea: {
     flexDirection: 'row',
     backgroundColor: COLORS.gray50,
-    borderRadius: RADIUS.sm,
-    padding: SPACING.sm,
+    borderRadius: 0,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
     borderLeftWidth: 3,
     borderLeftColor: COLORS.primary + '40',
@@ -1961,8 +1966,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: RADIUS.md,
-    paddingVertical: 10,
+    borderRadius: 0,
+    paddingVertical: 12,
     gap: 8,
     marginBottom: SPACING.sm,
   },
@@ -1978,6 +1983,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: SPACING.md,
   },
   feedCardData: {
     fontSize: FONTS.sizes.xs,

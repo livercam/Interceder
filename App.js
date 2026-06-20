@@ -1,6 +1,7 @@
 // App Interceder - Ponto de Entrada Principal
 // Aplicativo Mobile de Rede de Oração e Comunhão em Células Digitais
-
+import * as Notifications from 'expo-notifications';
+import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import React, { useEffect, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -57,6 +58,11 @@ export default function App() {
   useEffect(() => {
     configureGoogleSignIn();
   }, []);
+
+  // ============================================================
+  // Listener movido para AppNavigator.js
+  // (navegação unificada com suporte a screen e link)
+  // ============================================================
 
   // ============================================================
   // Estilizar a Barra de Navegação Nativa do Android

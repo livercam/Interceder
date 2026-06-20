@@ -33,9 +33,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { formatarNomeCurto } from '../utils/formatters';
 
-// Altura estimada de cada card de testemunho
-const CARD_ESTIMATED_HEIGHT = 200;
-
 // ============================================================
 // Utilitários (clone do MuralScreen)
 // ============================================================
@@ -79,7 +76,7 @@ const getTempoRelativo = (timestamp) => {
 };
 
 // ============================================================
-// Componente de Cartão de Testemunho (Memoizado)
+// Componente de Cartão de Testemunho (Estilo Rede Social)
 // ============================================================
 const TestemunhoCard = React.memo(function TestemunhoCard({ testemunho }) {
   const navigation = useNavigation();
@@ -90,60 +87,23 @@ const TestemunhoCard = React.memo(function TestemunhoCard({ testemunho }) {
     });
   };
 
+  const handlePerfil = () => {
+    if (testemunho.autor_id) {
+      navigation.navigate('PublicProfile', { userId: testemunho.autor_id });
+    }
+  };
+
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={handleAbrirDetalhes}
       activeOpacity={0.85}
     >
-      {/* Tag de Categoria (se existir) */}
-      {testemunho.pedido_vinculado_categoria && (
-        <View style={styles.cardHeader}>
-          <View
-            style={[
-              styles.categoriaTag,
-              { backgroundColor: getCategoriaColor(testemunho.pedido_vinculado_categoria) + '20' },
-            ]}
-          >
-            <View
-              style={[
-                styles.categoriaDot,
-                { backgroundColor: getCategoriaColor(testemunho.pedido_vinculado_categoria) },
-              ]}
-            />
-            <Text
-              style={[
-                styles.categoriaText,
-                { color: getCategoriaColor(testemunho.pedido_vinculado_categoria) },
-              ]}
-            >
-              {getCategoriaLabel(testemunho.pedido_vinculado_categoria)}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Texto do Testemunho */}
-      <Text style={styles.cardTexto} numberOfLines={3} ellipsizeMode="tail">
-        {testemunho.texto}
-      </Text>
-
-      {/* Rodapé do Card */}
-      <View style={styles.cardFooter}>
-        <TouchableOpacity
-          style={styles.autorInfo}
-          onPress={() => {
-            if (testemunho.autor_id) {
-              navigation.navigate('PublicProfile', { userId: testemunho.autor_id });
-            }
-          }}
-          activeOpacity={0.7}
-        >
+      {/* Cabeçalho: Avatar 40px + Nome + Tempo */}
+      <View style={styles.cardHeader}>
+        <TouchableOpacity onPress={handlePerfil} style={styles.autorRow} activeOpacity={0.7}>
           {testemunho.autor_foto_url ? (
-            <Image
-              source={{ uri: testemunho.autor_foto_url }}
-              style={styles.autorAvatarFoto}
-            />
+            <Image source={{ uri: testemunho.autor_foto_url }} style={styles.autorAvatar} />
           ) : (
             <View style={styles.autorAvatar}>
               <Text style={styles.autorAvatarText}>
@@ -151,37 +111,51 @@ const TestemunhoCard = React.memo(function TestemunhoCard({ testemunho }) {
               </Text>
             </View>
           )}
-          <View style={styles.autorNomeCol}>
+          <View style={styles.autorInfo}>
             <View style={styles.autorNomeRow}>
               <Text style={styles.autorNome} numberOfLines={1}>
                 {formatarNomeCurto(testemunho.autor_nome) || 'Anônimo'}
               </Text>
-              {testemunho.autor_premium === true && (
-                <Text style={styles.seloPremium}>💎</Text>
-              )}
+              {testemunho.autor_premium === true && <Text style={styles.seloPremium}>💎</Text>}
             </View>
-            {/* Regra de Ouro: título ministerial só aparece se o ministério for reconhecido */}
-            {(testemunho.autor_endossos_count >= 5 || testemunho.autor_verificado_lideranca === true) &&
-             testemunho.autor_cargo && testemunho.autor_cargo.toLowerCase() !== 'membro' && (
-              <Text style={styles.autorCargoText}>
-                {testemunho.autor_cargo === 'diacono' ? 'Diácono' :
-                 testemunho.autor_cargo === 'missionario' ? 'Missionário' :
-                 testemunho.autor_cargo === 'evangelista' ? 'Evangelista' :
-                 testemunho.autor_cargo === 'presbitero' ? 'Presbítero' :
-                 testemunho.autor_cargo === 'pastor' ? 'Pastor' : testemunho.autor_cargo} 🛡️
-              </Text>
-            )}
+            <Text style={styles.autorTempo}>{getTempoRelativo(testemunho.criadoEm)}</Text>
           </View>
         </TouchableOpacity>
+      </View>
 
-        <View style={styles.cardStats}>
-          <Text style={styles.tempoTexto}>
-            {getTempoRelativo(testemunho.criadoEm)}
+      {/* Categoria (se vinculada) */}
+      {testemunho.pedido_vinculado_categoria && (
+        <View style={[styles.categoriaTag, { backgroundColor: getCategoriaColor(testemunho.pedido_vinculado_categoria) + '18' }]}>
+          <View style={[styles.categoriaDot, { backgroundColor: getCategoriaColor(testemunho.pedido_vinculado_categoria) }]} />
+          <Text style={[styles.categoriaText, { color: getCategoriaColor(testemunho.pedido_vinculado_categoria) }]}>
+            {getCategoriaLabel(testemunho.pedido_vinculado_categoria)}
           </Text>
-          <Text style={styles.statsSeparator}>•</Text>
-          <Text style={styles.gloriasTexto}>
-            🙌 {testemunho.glorias || 0}
+        </View>
+      )}
+
+      {/* Texto do Testemunho */}
+      <Text style={styles.cardTexto} numberOfLines={4} ellipsizeMode="tail">
+        {testemunho.texto}
+      </Text>
+
+      {/* Cargo Ministerial (se reconhecido) */}
+      {(testemunho.autor_endossos_count >= 5 || testemunho.autor_verificado_lideranca === true) &&
+       testemunho.autor_cargo && testemunho.autor_cargo.toLowerCase() !== 'membro' && (
+        <View style={styles.cargoRow}>
+          <Text style={styles.cargoText}>
+            ⚜️ {testemunho.autor_cargo.charAt(0).toUpperCase() + testemunho.autor_cargo.slice(1)}
           </Text>
+        </View>
+      )}
+
+      {/* Barra de Interações */}
+      <View style={styles.interacoesRow}>
+        <View style={styles.interacaoItem}>
+          <Text style={styles.interacaoIcone}>🙌</Text>
+          <Text style={styles.interacaoContador}>{testemunho.glorias || 0}</Text>
+        </View>
+        <View style={styles.interacaoItem}>
+          <Text style={styles.interacaoIcone}>💬</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -283,6 +257,7 @@ function CriarTestemunhoModal({ visible, onClose, user, userCargo, userIsPremium
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: SPACING.xxl }}
             >
             {/* Header */}
             <View style={styles.modalHeader}>
@@ -456,13 +431,6 @@ export default function TestemunhosScreen() {
   // keyExtractor estável
   const keyExtractor = useCallback((item) => item.id, []);
 
-  // getItemLayout para scroll mais rápido
-  const getItemLayout = useCallback((_data, index) => ({
-    length: CARD_ESTIMATED_HEIGHT,
-    offset: CARD_ESTIMATED_HEIGHT * index,
-    index,
-  }), []);
-
   // Renderizar cada cartão (memoizado)
   const renderTestemunho = useCallback(
     ({ item }) => <TestemunhoCard testemunho={item} />,
@@ -517,7 +485,6 @@ export default function TestemunhosScreen() {
           data={testemunhos}
           renderItem={renderTestemunho}
           keyExtractor={keyExtractor}
-          getItemLayout={getItemLayout}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           removeClippedSubviews={Platform.OS === 'android'}
@@ -585,26 +552,68 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
 
-  // Card (clone do MuralScreen)
+  // Card (Estilo Rede Social - mesmo padrão do Mural)
   card: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    padding: SPACING.lg,
     marginBottom: SPACING.md,
     ...SHADOWS.md,
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: SPACING.sm,
+  },
+  autorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  autorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.sm,
+  },
+  autorAvatarText: {
+    color: COLORS.white,
+    fontSize: FONTS.sizes.md,
+    fontWeight: 'bold',
+  },
+  autorInfo: {
+    flex: 1,
+  },
+  autorNomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  autorNome: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  autorTempo: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray400,
+    marginTop: 2,
+  },
+  seloPremium: {
+    fontSize: 14,
+    marginLeft: 4,
   },
   categoriaTag: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: RADIUS.full,
+    marginBottom: SPACING.sm,
   },
   categoriaDot: {
     width: 8,
@@ -620,78 +629,35 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     color: COLORS.gray800,
     lineHeight: 22,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  cardFooter: {
+  cargoRow: {
+    marginBottom: SPACING.md,
+  },
+  cargoText: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  interacoesRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: SPACING.lg,
     borderTopWidth: 1,
     borderTopColor: COLORS.gray100,
     paddingTop: SPACING.sm,
   },
-  autorInfo: {
+  interacaoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    gap: 4,
   },
-  autorAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.sm,
+  interacaoIcone: {
+    fontSize: 16,
   },
-  autorAvatarFoto: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginRight: SPACING.sm,
-  },
-  autorAvatarText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.xs,
-    fontWeight: 'bold',
-  },
-  autorNomeCol: {
-    flex: 1,
-  },
-  autorNomeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  autorNome: {
+  interacaoContador: {
     fontSize: FONTS.sizes.sm,
     color: COLORS.gray600,
-    fontFamily: 'Nunito_700Bold',
-  },
-  seloPremium: {
-    fontSize: 14,
-    marginLeft: 4,
-  },
-  autorCargoText: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.primary,
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  cardStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tempoTexto: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.gray400,
-  },
-  statsSeparator: {
-    marginHorizontal: 4,
-    color: COLORS.gray300,
-  },
-  gloriasTexto: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.primary,
     fontWeight: '600',
   },
 

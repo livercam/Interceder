@@ -2,7 +2,7 @@
 // Escuta o estado de autenticação via AuthContext e renderiza Login ou MainTabs
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text, Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -35,6 +35,7 @@ import NovaMensagemApoioScreen from '../screens/NovaMensagemApoioScreen';
 import GerenciarSolicitacoesScreen from '../screens/GerenciarSolicitacoesScreen';
 import EditarCelulaScreen from '../screens/EditarCelulaScreen';
 import SuporteScreen from '../screens/SuporteScreen';
+import WebViewScreen from '../screens/WebViewScreen';
 import CustomSplashScreen from '../components/CustomSplashScreen';
 import HeaderLogo from '../components/HeaderLogo';
 
@@ -152,6 +153,92 @@ function LoadingScreen() {
 }
 
 // ============================================================
+// Função que processa o clique em notificação push
+// ============================================================
+function processarNotificacaoPush(data, navigationRef) {
+  const link = data?.link;
+  const screen = data?.screen;
+
+  // Prioridade 1: link externo → abrir no navegador interno (WebViewScreen)
+  if (link && link.startsWith('http')) {
+    const titulo = data?.titulo_notificacao || data?.title || '';
+    navigationRef.navigate('WebView', { url: link, titulo });
+    return;
+  }
+
+  // Prioridade 2: screen interna definida no push
+  if (screen) {
+    switch (screen) {
+      case 'MuralCelula':
+        if (data?.celulaId) {
+          navigationRef.navigate('MuralCelula', {
+            celulaId: data.celulaId,
+            celulaNome: data.celulaNome || 'Mural da Célula',
+          });
+        }
+        return;
+
+      case 'GerenciarMembrosCelula':
+      case 'GerenciarSolicitacoes':
+        if (data?.celulaId) {
+          navigationRef.navigate('GerenciarSolicitacoes', {
+            celulaId: data.celulaId,
+          });
+        }
+        return;
+
+      case 'PedidoDetalhes':
+        if (data?.pedidoId) {
+          navigationRef.navigate('PedidoDetalhes', {
+            pedidoId: data.pedidoId,
+          });
+        }
+        return;
+
+      case 'TestemunhoDetalhes':
+        if (data?.testemunhoId) {
+          navigationRef.navigate('TestemunhoDetalhes', {
+            testemunhoId: data.testemunhoId,
+          });
+        }
+        return;
+
+      case 'Perfil':
+        navigationRef.navigate('Perfil');
+        return;
+
+      case 'Mural':
+        navigationRef.navigate('Mural');
+        return;
+
+      case 'Celulas':
+      case 'Células':
+        navigationRef.navigate('Células');
+        return;
+
+      case 'Testemunhos':
+        navigationRef.navigate('Testemunhos');
+        return;
+
+      case 'Notificacoes':
+        navigationRef.navigate('Notificacoes');
+        return;
+
+      default:
+        try {
+          navigationRef.navigate(screen);
+        } catch (e) {
+          console.warn('[Push] Screen não encontrada:', screen, e.message);
+        }
+        return;
+    }
+  }
+
+  // Prioridade 3: fallback — apenas abre o app
+  console.log('[Push] Notificação sem screen nem link — apenas abriu o app.');
+}
+
+// ============================================================
 // Navegador Principal com Proteção de Rotas
 // ============================================================
 export default function AppNavigator() {
@@ -162,6 +249,7 @@ export default function AppNavigator() {
 
   // ============================================================
   // Listener de Resposta a Notificações Push (Deep Linking)
+  // Suporta: screen (navegação interna) e link (URL externa)
   // ============================================================
   useEffect(() => {
     const responseListener = Notifications.addNotificationResponseReceivedListener(
@@ -173,36 +261,7 @@ export default function AppNavigator() {
             setTimeout(tentarNavegar, 100);
             return;
           }
-
-          const screen = data?.screen || 'PedidoDetalhes';
-
-          switch (screen) {
-            case 'MuralCelula':
-              if (data?.celulaId) {
-                navigationRef.navigate('MuralCelula', {
-                  celulaId: data.celulaId,
-                  celulaNome: data.celulaNome || 'Mural da Célula',
-                });
-              }
-              break;
-
-            case 'GerenciarMembrosCelula':
-              if (data?.celulaId) {
-                navigationRef.navigate('GerenciarSolicitacoes', {
-                  celulaId: data.celulaId,
-                });
-              }
-              break;
-
-            case 'PedidoDetalhes':
-            default:
-              if (data?.pedidoId) {
-                navigationRef.navigate('PedidoDetalhes', {
-                  pedidoId: data.pedidoId,
-                });
-              }
-              break;
-          }
+          processarNotificacaoPush(data, navigationRef);
         };
 
         tentarNavegar();
@@ -229,12 +288,7 @@ export default function AppNavigator() {
 
   // ============================================================
   // Gerenciamento da Splash Screen Animada
-  // Quando showSplash = true, exibe a CustomSplashScreen
-  // Após o tempo definido (2800ms), showSplash = false
-  // e o NavigationContainer renderiza as rotas normais.
   // ============================================================
-
-  // Mostra a Splash enquanto carrega o Firebase OU logo no início
   const exibirSplash = showSplash || isLoading || isFirstLaunch === null;
 
   if (exibirSplash && showSplash) {
@@ -246,7 +300,6 @@ export default function AppNavigator() {
     );
   }
 
-  // Loading do Firebase (breve, enquanto verifica autenticação)
   if (isLoading || isFirstLaunch === null) {
     return <LoadingScreen />;
   }
@@ -260,8 +313,6 @@ export default function AppNavigator() {
         }}
       >
         {user && !emailVerified ? (
-          // Caso 1: Usuário autenticado, mas email NÃO verificado
-          // (usuários do Google já vêm com emailVerified = true, então não passam aqui)
           <>
             <Stack.Screen
               name="EmailVerification"
@@ -270,7 +321,6 @@ export default function AppNavigator() {
             />
           </>
         ) : user ? (
-          // Caso 2: Usuário autenticado COM email verificado → App principal
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
@@ -436,6 +486,14 @@ export default function AppNavigator() {
               }}
             />
             <Stack.Screen
+              name="WebView"
+              component={WebViewScreen}
+              options={{
+                headerShown: false,
+                animation: 'slide_from_bottom',
+              }}
+            />
+            <Stack.Screen
               name="Suporte"
               component={SuporteScreen}
               options={{
@@ -448,7 +506,6 @@ export default function AppNavigator() {
             />
           </>
         ) : (
-          // Caso 3: Usuário não autenticado → Telas de Login
           <>
             {isFirstLaunch && (
               <Stack.Screen
@@ -495,7 +552,6 @@ export default function AppNavigator() {
 // Estilos
 // ============================================================
 const styles = StyleSheet.create({
-  // Loading
   loadingContainer: {
     flex: 1,
     backgroundColor: COLORS.primary,
@@ -508,8 +564,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     opacity: 0.8,
   },
-
-  // Tab Bar Premium
   tabBar: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 0,
@@ -524,8 +578,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-
-  // Header
   header: {
     backgroundColor: COLORS.primary,
     ...SHADOWS.md,

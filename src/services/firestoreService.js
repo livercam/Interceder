@@ -72,7 +72,15 @@ export const createUserProfile = async (uid, userData) => {
     titulo_ministerial: 'membro',
     celulas_inscritas: [],
     endossos_uids: [],
-    stats: { oracoes_feitas: 0, dias_seguidos: 0 },
+    stats: {
+      oracoes_feitas: 0,
+      oracoes_hoje: 0,
+      minutos_semana: 0,
+      ultima_oracao_data: '',
+      ultima_oracao_semana: '',
+      testemunhos: 0,
+      endossos_recebidos: 0,
+    },
     is_admin: false,
     push_notificacoes_activas: true,
     createdAt: serverTimestamp(),
@@ -1328,6 +1336,17 @@ export const adicionarTestemunho = async (user, texto, pedidoVinculadoId = null,
     });
   }
 
+  // ============================================================
+  // ATUALIZAR STATS: Incrementa contador de testemunhos do autor
+  // ============================================================
+  try {
+    await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+      'stats.testemunhos': increment(1),
+    }, { merge: true });
+  } catch (statsError) {
+    console.warn('[Stats] Erro ao incrementar testemunhos:', statsError.message);
+  }
+
   return docRef.id;
 };
 
@@ -1879,6 +1898,18 @@ export const alternarEndosso = async (meuUid, perfilUid, endossar, tipoEndosso =
     console.log('[DEBUG PAYLOAD ALVO CHAVES]:', Object.keys(payloadAlvo));
 
     await updateDoc(perfilRef, payloadAlvo);
+
+    // ============================================================
+    // ATUALIZAR STATS: Incrementa endossos_recebidos do perfil alvo
+    // Operação separada para não conflitar com a regra hasOnly
+    // ============================================================
+    try {
+      await setDoc(perfilRef, {
+        'stats.endossos_recebidos': increment(1),
+      }, { merge: true });
+    } catch (statsError) {
+      console.warn('[Stats] Erro ao incrementar endossos_recebidos:', statsError.message);
+    }
 
     // ============================================================
     // PAYLOAD DO REMETENTE (quem ENVIA o endosso — meuRef)

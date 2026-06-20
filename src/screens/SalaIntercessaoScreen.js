@@ -22,6 +22,7 @@ import {
   intercederPorPedido,
   toggleSalvarPedido,
   buscarProximoPedido,
+  getUserProfile,
 } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -52,12 +53,14 @@ export default function SalaIntercessaoScreen({ route, navigation }) {
   const registrarRef = useRef(null);
 
   // Manter a referência atualizada para evitar stale closure no setInterval
+  const resultadoRef = useRef(null);
   registrarRef.current = useCallback(async () => {
     if (!user) return;
 
     setRegistrando(true);
     try {
-      await intercederPorPedido(pedidoId, user.uid);
+      const resultado = await intercederPorPedido(pedidoId, user.uid);
+      resultadoRef.current = resultado;
       // Remover automaticamente da Lista de Oração Pessoal
       await toggleSalvarPedido(user.uid, pedidoId, 'remover');
       setConcluido(true);
@@ -136,19 +139,25 @@ export default function SalaIntercessaoScreen({ route, navigation }) {
   };
 
   // Carregar estatísticas do utilizador após conclusão
+  // Só computa se for a PRIMEIRA vez que ora por este pedido
   useEffect(() => {
     if (!concluido || !user) return;
 
+    const resultado = resultadoRef.current;
+    // Se já intercedeu antes pelo mesmo pedido, NÃO computa as estatísticas novamente
+    if (resultado?.jaIntercedeu) return;
+
     const carregarEstatisticas = async () => {
       try {
-        const { getUserProfile } = await import('../services/firestoreService');
         const perfil = await getUserProfile(user.uid);
-        if (perfil?.stats) {
-          setOracoesHoje(perfil.stats.oracoes_hoje || 0);
-          setMinutosSemana(perfil.stats.minutos_semana || 0);
-        }
-      } catch {
-        // Silencioso — estatísticas são cosméticas
+        const stats = perfil?.stats || {};
+        setOracoesHoje(stats.oracoes_hoje || 0);
+        setMinutosSemana(stats.minutos_semana || 0);
+      } catch (error) {
+        console.warn('[SalaIntercessao] Erro ao carregar estatísticas:', error.message);
+        // Fallback: usar valores mínimos para não deixar em branco
+        setOracoesHoje(1);
+        setMinutosSemana(Math.max(1, Math.round(tempoSegundos / 60)));
       }
     };
     carregarEstatisticas();

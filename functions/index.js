@@ -28,21 +28,35 @@ const db = admin.firestore();
 // UTILITÁRIO: Enviar lote de push notifications via FCM v1
 // ============================================================
 
-async function enviarPushLote(tokens, title, body, data = {}) {
+// Limite máximo de tokens por chamada ao FCM
+const CHUNK_SIZE = 500;
+
+/**
+ * Envia push notifications em lote via FCM v1.
+ * Suporta imageUrl na notificação e link nos dados.
+ */
+async function enviarPushLote(tokens, title, body, data = {}, imageUrl = null) {
   if (!tokens || tokens.length === 0) {
     console.log('[Push] Nenhum token para enviar.');
     return;
   }
 
+  // Montar objeto notification com imageUrl opcional
+  const notifPayload = { title, body };
+  if (imageUrl) {
+    notifPayload.imageUrl = imageUrl;
+  }
+
   const messages = tokens.map((token) => ({
     token,
-    notification: { title, body },
+    notification: notifPayload,
     android: {
       priority: 'high',
       notification: {
         channelId: 'default',
         sound: 'default',
         priority: 'high',
+        ...(imageUrl ? { imageUrl } : {}),
       },
     },
     data: Object.fromEntries(
@@ -50,38 +64,66 @@ async function enviarPushLote(tokens, title, body, data = {}) {
     ),
   }));
 
-  try {
-    const response = await admin.messaging().sendEach(messages);
+  let totalSuccess = 0;
+  let totalFailure = 0;
+  const totalTokensParaRemover = new Set();
+  const totalChunks = Math.ceil(messages.length / CHUNK_SIZE);
 
-    console.log(`[Push] ${response.successCount} enviada(s), ${response.failureCount} falha(s).`);
+  // Dividir em lotes de CHUNK_SIZE para respeitar o limite do FCM
+  for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+    const chunk = messages.slice(i, i + CHUNK_SIZE);
+    const chunkTokens = tokens.slice(i, i + CHUNK_SIZE);
+    const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
 
-    if (response.failureCount > 0) {
-      const tokensParaRemover = new Set();
+    console.log(`[Push] Enviando lote ${chunkIndex}/${totalChunks} (${chunk.length} mensagens)...`);
 
-      response.responses.forEach((resp, index) => {
-        if (!resp.success) {
-          const code = resp.error?.code || '';
-          if (code === 'UNREGISTERED' || code === 'INVALID_ARGUMENT' || code.includes('registration-token-not-registered')) {
-            console.warn(`[Push] Token inválido [${index}]: ${code}`);
-            tokensParaRemover.add(tokens[index]);
+    try {
+      const response = await admin.messaging().sendEach(chunk);
+
+      totalSuccess += response.successCount;
+      totalFailure += response.failureCount;
+
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, index) => {
+          if (!resp.success) {
+            const code = resp.error?.code || '';
+            if (code === 'UNREGISTERED' || code === 'INVALID_ARGUMENT' || code.includes('registration-token-not-registered')) {
+              console.warn(`[Push] Token inválido [${i + index}]: ${code}`);
+              totalTokensParaRemover.add(chunkTokens[index]);
+            }
           }
-        }
-      });
+        });
+      }
+    } catch (error) {
+      console.error(`[Push] Erro no lote ${chunkIndex}/${totalChunks}:`, error.message);
+      totalFailure += chunk.length;
+    }
+  }
 
-      if (tokensParaRemover.size > 0) {
-        const batch = db.batch();
+  console.log(`[Push] Total: ${totalSuccess} enviada(s), ${totalFailure} falha(s) em ${totalChunks} lote(s).`);
+
+  // Remover tokens inválidos encontrados em todos os lotes
+  if (totalTokensParaRemover.size > 0) {
+    try {
+      const batch = db.batch();
+      const tokensArray = Array.from(totalTokensParaRemover);
+
+      // Firestore suporta no máximo 10 itens em 'in', então dividimos em sub-lotes
+      for (let i = 0; i < tokensArray.length; i += 10) {
+        const subTokens = tokensArray.slice(i, i + 10);
         const usersSnap = await db
           .collection('users')
-          .where('expo_push_token', 'in', Array.from(tokensParaRemover))
+          .where('fcm_token', 'in', subTokens)
           .get();
 
-        usersSnap.forEach((doc) => batch.update(doc.ref, { expo_push_token: null }));
-        await batch.commit();
-        console.log(`[Push] ${tokensParaRemover.size} tokens removidos.`);
+        usersSnap.forEach((doc) => batch.update(doc.ref, { fcm_token: null }));
       }
+
+      await batch.commit();
+      console.log(`[Push] ${totalTokensParaRemover.size} tokens inválidos removidos.`);
+    } catch (error) {
+      console.error('[Push] Erro ao remover tokens inválidos:', error.message);
     }
-  } catch (error) {
-    console.error('[Push] Erro no lote FCM:', error.message);
   }
 }
 
@@ -152,8 +194,8 @@ exports.onPedidoCelulaCriado = onDocumentCreated(
         const usersSnap = await db.collection('users').where('__name__', 'in', membros).get();
         usersSnap.forEach((d) => {
           const u = d.data();
-          if (u.expo_push_token && u.push_notificacoes_activas !== false) {
-            tokens.push(u.expo_push_token);
+          if (u.fcm_token && u.push_notificacoes_activas !== false) {
+            tokens.push(u.fcm_token);
           }
         });
       } catch (err) {
@@ -195,7 +237,7 @@ exports.onFeedCelulaCriado = onDocumentCreated(
       const tokens = [];
       usersSnap.forEach((d) => {
         const u = d.data();
-        if (u.expo_push_token && u.push_notificacoes_activas !== false) tokens.push(u.expo_push_token);
+        if (u.fcm_token && u.push_notificacoes_activas !== false) tokens.push(u.fcm_token);
       });
 
       if (tokens.length > 0) {
@@ -232,10 +274,10 @@ exports.onMensagemApoioPedido = onDocumentCreated(
       if (!userSnap.exists) return;
 
       const user = userSnap.data();
-      if (!user.expo_push_token || user.push_notificacoes_activas === false) return;
+      if (!user.fcm_token || user.push_notificacoes_activas === false) return;
 
       const nome = msg.autor_nome || 'Alguém';
-      await enviarPushLote([user.expo_push_token], '💬 Mensagem de apoio', `${nome} escreveu no seu pedido.`, {
+      await enviarPushLote([user.fcm_token], '💬 Mensagem de apoio', `${nome} escreveu no seu pedido.`, {
         screen: 'PedidoDetalhes', pedidoId, tipo: 'apoio',
       });
     } catch (err) {
@@ -265,10 +307,10 @@ exports.onMensagemApoioTestemunho = onDocumentCreated(
       if (!userSnap.exists) return;
 
       const user = userSnap.data();
-      if (!user.expo_push_token || user.push_notificacoes_activas === false) return;
+      if (!user.fcm_token || user.push_notificacoes_activas === false) return;
 
       const nome = msg.autor_nome || 'Alguém';
-      await enviarPushLote([user.expo_push_token], '💬 Mensagem de apoio', `${nome} escreveu no seu testemunho.`, {
+      await enviarPushLote([user.fcm_token], '💬 Mensagem de apoio', `${nome} escreveu no seu testemunho.`, {
         screen: 'TestemunhoDetalhes', testemunhoId, tipo: 'apoio_testemunho',
       });
     } catch (err) {
@@ -276,6 +318,52 @@ exports.onMensagemApoioTestemunho = onDocumentCreated(
     }
   }
 );
+
+// ============================================================
+// FUNÇÃO HTTP: enviarPushPromocional
+// Chamada pelo painel administrativo (Vite)
+// POST /enviarPushPromocional  { tokens[], title, body, imageUrl, link }
+// ============================================================
+
+exports.enviarPushPromocional = onRequest({ cors: true }, async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Use POST.' });
+    return;
+  }
+
+  const { tokens, title, body, imageUrl, link, screen } = req.body || {};
+
+  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+    res.status(400).json({ error: 'tokens (array) é obrigatório.' });
+    return;
+  }
+
+  if (!title || !body) {
+    res.status(400).json({ error: 'title e body são obrigatórios.' });
+    return;
+  }
+
+  try {
+    console.log(`[enviarPushPromocional] Iniciando envio para ${tokens.length} token(s). Título: "${title}"`);
+
+    // Montar data com link e screen se fornecidos
+    const dataPayload = {};
+    if (link) {
+      dataPayload.link = link;
+    }
+    if (screen) {
+      dataPayload.screen = screen;
+    }
+
+    await enviarPushLote(tokens, title, body, dataPayload, imageUrl || null);
+
+    console.log('[enviarPushPromocional] Envio concluído com sucesso.');
+    res.status(200).json({ success: true, total: tokens.length });
+  } catch (error) {
+    console.error('[enviarPushPromocional] Erro:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ============================================================
 // FUNÇÃO HTTP: enviarSuporte (Formulário de Contato)

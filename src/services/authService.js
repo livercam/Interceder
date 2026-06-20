@@ -90,7 +90,12 @@ export const registerUser = async (email, password, nome, notificacoesAceitas = 
     celulas_inscritas: [],
     stats: {
       oracoes_feitas: 0,
-      dias_seguidos: 0,
+      oracoes_hoje: 0,
+      minutos_semana: 0,
+      ultima_oracao_data: '',
+      ultima_oracao_semana: '',
+      testemunhos: 0,
+      endossos_recebidos: 0,
     },
     is_admin: false,
     createdAt: serverTimestamp(),

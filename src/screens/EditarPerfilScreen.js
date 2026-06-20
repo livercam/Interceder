@@ -142,7 +142,7 @@ export default function EditarPerfilScreen({ navigation }) {
     } finally {
       setSalvando(false);
     }
-  }, [nome, username, whatsapp, titulo, user, usernameDisponivel, navigation, showAlert]);
+  }, [nome, username, whatsapp, titulo, pushAtivo, user, usernameDisponivel, navigation, showAlert]);
 
   const handleExcluirConta = useCallback(() => {
     showAlert({

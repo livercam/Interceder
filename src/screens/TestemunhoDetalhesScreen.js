@@ -397,26 +397,24 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
         {/* Botão Glória a Deus! + Chuva de Partículas + Contadores */}
         <View style={styles.gloriaSection}>
-          <View style={styles.gloriaBtnContainer}>
-            <TouchableOpacity
-              style={styles.gloriaBtn}
-              onPress={handleCelebrar}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.gloriaBtnIcon}>🙌</Text>
-              <Text style={styles.gloriaBtnText}>Glória a Deus!</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.gloriaBtn}
+            onPress={handleCelebrar}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.gloriaBtnIcon}>🙌</Text>
+            <Text style={styles.gloriaBtnText}>Glória a Deus!</Text>
+          </TouchableOpacity>
 
-            {/* Partículas flutuando para cima */}
-            {particulas.map((p) => (
-              <ParticulaGloria
-                key={p.id}
-                id={p.id}
-                xOffset={p.xOffset}
-                onRemover={removerParticula}
-              />
-            ))}
-          </View>
+          {/* Partículas flutuando para cima */}
+          {particulas.map((p) => (
+            <ParticulaGloria
+              key={p.id}
+              id={p.id}
+              xOffset={p.xOffset}
+              onRemover={removerParticula}
+            />
+          ))}
 
           <View style={styles.gloriaInfo}>
             <Text style={styles.gloriaIcon}>💬</Text>
@@ -438,44 +436,60 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
               <Text style={styles.semMensagensHint}>Seja o primeiro a dar os parabéns!</Text>
             </View>
           ) : (
-            mensagens.map((msg) => (
-              <View key={msg.id} style={styles.mensagemCard}>
-                <View style={styles.mensagemHeader}>
-                  <View style={styles.mensagemAvatar}>
-                    <Text style={styles.mensagemAvatarText}>
-                      {msg.autor_nome?.charAt(0)?.toUpperCase() || '?'}
-                    </Text>
+            <View style={styles.mensagemTimeline}>
+              {mensagens.length > 1 && <View style={styles.mensagemLine} />}
+              {mensagens.map((msg) => {
+                const ehAutor = testemunho && msg.autor_id === testemunho.autor_id;
+                return (
+                  <View key={msg.id} style={styles.mensagemCardWrapper}>
+                    <View style={styles.mensagemDot} />
+                    <View style={[styles.mensagemCard, ehAutor && styles.mensagemCardAutor]}>
+                      <View style={styles.mensagemHeader}>
+                        <View style={styles.mensagemAvatar}>
+                          <Text style={styles.mensagemAvatarText}>
+                            {msg.autor_nome?.charAt(0)?.toUpperCase() || '?'}
+                          </Text>
+                        </View>
+                        <View style={styles.mensagemInfo}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.mensagemAutor}>{formatarNomeCurto(msg.autor_nome)}</Text>
+                            {ehAutor && (
+                              <View style={styles.mensagemAutorBadge}>
+                                <Text style={styles.mensagemAutorBadgeText}>👑 Autor</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.mensagemData}>{getTempoRelativo(msg.criadoEm)}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.replyBtn}
+                          onPress={() => handleReply(msg)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.replyBtnText}>↩ Responder</Text>
+                        </TouchableOpacity>
+                        {user && testemunho && (msg.autor_id === user.uid || testemunho.autor_id === user.uid) && (
+                          <TouchableOpacity
+                            style={styles.excluirMsgBtn}
+                            onPress={() => handleExcluirMensagem(msg)}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={styles.excluirMsgBtnText}>🗑️</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      {msg.replyTo_autor && (
+                        <View style={styles.replyIndicator}>
+                          <Text style={styles.replyIndicatorText}>↩ Respondendo a {formatarNomeCurto(msg.replyTo_autor)}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.mensagemTexto}>{msg.texto}</Text>
+                    </View>
                   </View>
-                  <View style={styles.mensagemInfo}>
-                    <Text style={styles.mensagemAutor}>{formatarNomeCurto(msg.autor_nome)}</Text>
-                    <Text style={styles.mensagemData}>{getTempoRelativo(msg.criadoEm)}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.replyBtn}
-                    onPress={() => handleReply(msg)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.replyBtnText}>↩ Responder</Text>
-                  </TouchableOpacity>
-                  {user && testemunho && (msg.autor_id === user.uid || testemunho.autor_id === user.uid) && (
-                    <TouchableOpacity
-                      style={styles.excluirMsgBtn}
-                      onPress={() => handleExcluirMensagem(msg)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Text style={styles.excluirMsgBtnText}>🗑️</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-                {msg.replyTo_autor && (
-                  <View style={styles.replyIndicator}>
-                    <Text style={styles.replyIndicatorText}>↩ Respondendo a {formatarNomeCurto(msg.replyTo_autor)}</Text>
-                  </View>
-                )}
-                <Text style={styles.mensagemTexto}>{msg.texto}</Text>
-              </View>
-            ))
+                );
+              })}
+            </View>
           )}
         </View>
 
@@ -588,7 +602,7 @@ const styles = StyleSheet.create({
   denunciarBtnText: { fontSize: 18 },
   linkPedidoBtn: { backgroundColor: COLORS.primary + '10', borderRadius: RADIUS.md, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, alignSelf: 'flex-start' },
   linkPedidoText: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '600' },
-  textoSection: { backgroundColor: COLORS.white, marginHorizontal: SPACING.lg, borderRadius: RADIUS.lg, padding: SPACING.lg, ...SHADOWS.md, marginBottom: SPACING.md },
+  textoSection: { backgroundColor: COLORS.white, marginHorizontal: 0, borderRadius: 0, padding: SPACING.lg, ...SHADOWS.md, marginBottom: SPACING.md },
   textoLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -597,19 +611,20 @@ const styles = StyleSheet.create({
   },
   textoLabel: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.gray500, textTransform: 'uppercase', letterSpacing: 1 },
   textoCompleto: { fontSize: FONTS.sizes.md, color: COLORS.gray800, lineHeight: 26 },
-  gloriaSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: SPACING.lg, marginBottom: SPACING.md, backgroundColor: COLORS.white, borderRadius: RADIUS.lg, padding: SPACING.md, ...SHADOWS.md },
-  gloriaBtnContainer: { position: 'relative', overflow: 'visible' },
-  gloriaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4CAF50', borderRadius: RADIUS.full, paddingVertical: 12, paddingHorizontal: SPACING.lg, ...SHADOWS.sm },
-  gloriaBtnIcon: { fontSize: 20, marginRight: SPACING.sm },
-  gloriaBtnText: { color: COLORS.white, fontSize: FONTS.sizes.md, fontWeight: 'bold' },
+  gloriaSection: { flexDirection: 'column', alignItems: 'stretch', marginHorizontal: 0, marginBottom: SPACING.md, backgroundColor: COLORS.white, borderRadius: 0, padding: SPACING.lg, ...SHADOWS.md, position: 'relative' },
+  gloriaBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4CAF50', borderRadius: RADIUS.lg, paddingVertical: 16, gap: SPACING.sm, ...SHADOWS.md },
+  gloriaBtnIcon: { fontSize: 24 },
+  gloriaBtnText: { color: COLORS.white, fontSize: FONTS.sizes.lg, fontWeight: 'bold' },
   gloriaBtnDisabled: { opacity: 0.7 },
   gloriaBtnDisabledText: { color: COLORS.gray400 },
   gloriaBtnIconDisabled: { opacity: 0.5 },
   gloriaBtnTextDisabled: { color: COLORS.gray400 },
   gloriaInfo: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
   },
   gloriaIcon: {
     fontSize: 18,
@@ -625,16 +640,56 @@ const styles = StyleSheet.create({
     color: COLORS.gray600,
     fontWeight: '700',
   },
-  mensagensSection: { backgroundColor: COLORS.white, marginHorizontal: SPACING.lg, borderRadius: RADIUS.lg, padding: SPACING.lg, ...SHADOWS.md, marginBottom: SPACING.md },
+  mensagensSection: { backgroundColor: COLORS.white, marginHorizontal: 0, borderRadius: 0, padding: SPACING.lg, ...SHADOWS.md, marginBottom: SPACING.md },
   mensagensTitle: { fontSize: FONTS.sizes.md, fontWeight: 'bold', color: COLORS.gray800, marginBottom: SPACING.md },
   semMensagens: { alignItems: 'center', paddingVertical: SPACING.lg },
   semMensagensEmoji: { fontSize: 40, marginBottom: SPACING.sm },
   semMensagensText: { fontSize: FONTS.sizes.md, color: COLORS.gray500, marginBottom: SPACING.xs },
   semMensagensHint: { fontSize: FONTS.sizes.sm, color: COLORS.gray400 },
-  mensagemCard: { backgroundColor: COLORS.background, borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.sm },
+  mensagemTimeline: {
+    position: 'relative',
+    paddingLeft: SPACING.md,
+  },
+  mensagemLine: {
+    position: 'absolute',
+    left: 16,
+    top: 32,
+    bottom: 0,
+    width: 2,
+    backgroundColor: COLORS.gray200,
+  },
+  mensagemCardWrapper: {
+    position: 'relative',
+    marginBottom: SPACING.sm,
+  },
+  mensagemCard: { backgroundColor: COLORS.background, borderRadius: RADIUS.md, padding: SPACING.md, borderWidth: 1, borderColor: COLORS.gray200, marginLeft: SPACING.md, position: 'relative' },
+  mensagemCardAutor: { backgroundColor: COLORS.primary + '08', borderColor: COLORS.primary + '25' },
+  mensagemDot: {
+    position: 'absolute',
+    left: -SPACING.md - 12,
+    top: 18,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
   mensagemHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm },
-  mensagemAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.sm },
+  mensagemAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.sm },
   mensagemAvatarText: { color: COLORS.white, fontSize: FONTS.sizes.sm, fontWeight: 'bold' },
+  mensagemAutorBadge: {
+    backgroundColor: COLORS.primary + '20',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginLeft: SPACING.xs,
+  },
+  mensagemAutorBadgeText: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
   mensagemInfo: { flex: 1 },
   mensagemAutor: { fontSize: FONTS.sizes.sm, fontFamily: 'Nunito_700Bold', color: COLORS.gray800 },
   mensagemData: { fontSize: FONTS.sizes.xs, color: COLORS.gray400 },

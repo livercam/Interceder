@@ -36,14 +36,18 @@ export function AuthProvider({ children }) {
           userDocRef,
           (docSnap) => {
             if (docSnap.exists()) {
-              setUserProfile(docSnap.data());
+              const data = docSnap.data();
+              setUserProfile(data);
+              if (data.stats) {
+                console.log('[AuthContext] Stats atualizados:', JSON.stringify(data.stats));
+              }
             } else {
               setUserProfile(null);
             }
             setIsLoading(false);
           },
           (error) => {
-            console.error('Erro no onSnapshot do perfil:', error);
+            console.error('[AuthContext] Erro no onSnapshot do perfil:', error.code, error.message);
             setIsLoading(false);
           }
         );

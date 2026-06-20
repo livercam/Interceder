@@ -169,12 +169,13 @@ export default function PublicProfileScreen({ route, navigation }) {
     carregar();
   }, [userId]);
 
+  const statsDataFull = profile?.stats || {};
   const jaEndossou = profile?.endossos_uids?.includes(currentUser?.uid) || false;
 
   const isReconhecido =
-    (profile?.endossos_uids?.length || 0) >= 5 || profile?.verificado_lideranca === true;
+    (statsDataFull.endossos_recebidos || 0) >= 5 || profile?.verificado_lideranca === true;
 
-  const contagemReal = profile?.endossos_uids?.length || 0;
+  const contagemReal = statsDataFull.endossos_recebidos || 0;
   const ehMembro = profile?.titulo_ministerial === 'membro';
   const ehProprio = currentUser?.uid === userId;
 
@@ -311,10 +312,11 @@ export default function PublicProfileScreen({ route, navigation }) {
     );
   }
 
+  const statsData = profile.stats || {};
   const dataMembro = profile.criadoEm || profile.createdAt || profile.criado_em;
-  const qtdPedidos = profile.stats?.oracoes_feitas || 0;
-  const qtdIntercessoes = profile.stats?.intercessoes_feitas || 0;
-  const qtdTestemunhos = testemunhos.length || 0;
+  const qtdPedidos = statsData.oracoes_feitas || 0;
+  const qtdIntercessoes = statsData.oracoes_hoje || 0;
+  const qtdTestemunhos = statsData.testemunhos || 0;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>

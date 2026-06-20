@@ -3,7 +3,7 @@
 // MIGRADO: Expo Push API → Firebase Admin SDK via Cloud Function
 // 
 // Fluxo:
-// 1. O app gera o token FCM via expo-notifications
+// 1. O app gera o token FCM via Firebase Messaging SDK (nativo)
 // 2. Para enviar, chama a Cloud Function /enviarPush que usa
 //    Firebase Admin SDK (FCM HTTP v1) com Service Account
 // 3. Os gatilhos automáticos (onPedidoCelulaCriado, etc.)
@@ -13,7 +13,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-// URL da Cloud Function de push (substituir após deploy)
+// URL da Cloud Function de push
 const PUSH_FUNCTION_URL = 'https://us-central1-interceder-ef0cd.cloudfunctions.net/enviarPush';
 
 /**
@@ -22,7 +22,7 @@ const PUSH_FUNCTION_URL = 'https://us-central1-interceder-ef0cd.cloudfunctions.n
  * Fluxo:
  * 1. Verifica se é um dispositivo físico
  * 2. Solicita permissão ao utilizador
- * 3. Gera o token Expo/FCM
+ * 3. Gera o token FCM via expo-notifications
  * 4. Configura o canal de notificação para Android
  * 
  * @returns {Promise<string|null>} - O token FCM em string, ou null se não for possível registar
@@ -55,14 +55,16 @@ export async function registrarParaPushNotificationsAsync() {
   }
 
   // ============================================================
-  // 3. Gerar token FCM nativo (não Expo)
+  // 3. Gerar token FCM via expo-notifications (nativo)
+  //    O Expo gerencia a ponte nativa com o Firebase Messaging
+  //    automaticamente. O google-services.json é usado em build.
   // ============================================================
   try {
     const tokenData = await Notifications.getDevicePushTokenAsync();
     token = tokenData.data;
-    console.log('[PushNotification] Token FCM nativo gerado com sucesso');
+    console.log('[PushNotification] Token FCM gerado com sucesso via expo-notifications');
   } catch (error) {
-    console.warn('[PushNotification] Erro ao gerar token:', error.message);
+    console.warn('[PushNotification] Erro ao gerar token FCM:', error.message);
     return null;
   }
 

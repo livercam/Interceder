@@ -136,6 +136,7 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
   // Réplicas (Reply)
   const [replyingTo, setReplyingTo] = useState(null);
   const inputRef = useRef(null);
+  const scrollViewRef = useRef(null);
 
   // @Menções
   const [usuariosSugeridos, setUsuariosSugeridos] = useState([]);
@@ -370,6 +371,8 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        ref={scrollViewRef}
+        onContentSizeChange={() => {}}
       >
         {/* ============================================ */}
         {/* Cabeçalho do Autor */}
@@ -552,56 +555,72 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
               </Text>
             </View>
           ) : (
-            mensagens.map((msg) => (
-              <View key={msg.id} style={styles.mensagemCard}>
-                <View style={styles.mensagemHeader}>
-                  <View style={styles.mensagemAvatar}>
-                    <Text style={styles.mensagemAvatarText}>
-                      {msg.autor_nome?.charAt(0)?.toUpperCase() || '?'}
-                    </Text>
+            <View style={styles.mensagemTimeline}>
+              {mensagens.length > 1 && <View style={styles.mensagemLine} />}
+              {mensagens.map((msg, index) => {
+                const ehAutor = pedido && msg.autor_id === pedido.autor_id;
+                return (
+                  <View key={msg.id} style={styles.mensagemCardWrapper}>
+                    <View style={styles.mensagemDot} />
+                    <View style={[styles.mensagemCard, ehAutor && styles.mensagemCardAutor]}>
+                      <View style={styles.mensagemHeader}>
+                        <View style={styles.mensagemAvatar}>
+                          <Text style={styles.mensagemAvatarText}>
+                            {msg.autor_nome?.charAt(0)?.toUpperCase() || '?'}
+                          </Text>
+                        </View>
+                        <View style={styles.mensagemInfo}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.mensagemAutor}>{formatarNomeCurto(msg.autor_nome)}</Text>
+                            {ehAutor && (
+                              <View style={styles.mensagemAutorBadge}>
+                                <Text style={styles.mensagemAutorBadgeText}>👑 Autor</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.mensagemData}>
+                            {getTempoRelativo(msg.criadoEm)}
+                          </Text>
+                        </View>
+
+                        {/* Botão Responder (Réplica) */}
+                        <TouchableOpacity
+                          style={styles.replyBtn}
+                          onPress={() => handleReply(msg)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.replyBtnText}>↩ Responder</Text>
+                        </TouchableOpacity>
+
+                        {/* Botão Excluir (Lixeira) */}
+                        {user && pedido && (msg.autor_id === user.uid || pedido.autor_id === user.uid) && (
+                          <TouchableOpacity
+                            style={styles.excluirMsgBtn}
+                            onPress={() => handleExcluirMensagem(msg)}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={styles.excluirMsgBtnText}>🗑️</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {/* Indicador de Réplica */}
+                      {msg.replyTo_autor && (
+                        <View style={styles.replyIndicator}>
+                          <Text style={styles.replyIndicatorText}>
+                            ↩ Respondendo a {formatarNomeCurto(msg.replyTo_autor)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Texto da mensagem com @menções destacadas */}
+                      {renderTextoComMencoes(msg.texto, styles.mensagemTexto)}
+                    </View>
                   </View>
-                  <View style={styles.mensagemInfo}>
-                    <Text style={styles.mensagemAutor}>{formatarNomeCurto(msg.autor_nome)}</Text>
-                    <Text style={styles.mensagemData}>
-                      {getTempoRelativo(msg.criadoEm)}
-                    </Text>
-                  </View>
-
-                  {/* Botão Responder (Réplica) */}
-                  <TouchableOpacity
-                    style={styles.replyBtn}
-                    onPress={() => handleReply(msg)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.replyBtnText}>↩ Responder</Text>
-                  </TouchableOpacity>
-
-                  {/* Botão Excluir (Lixeira) - visível apenas para autor da msg ou autor do pedido */}
-                  {user && pedido && (msg.autor_id === user.uid || pedido.autor_id === user.uid) && (
-                    <TouchableOpacity
-                      style={styles.excluirMsgBtn}
-                      onPress={() => handleExcluirMensagem(msg)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Text style={styles.excluirMsgBtnText}>🗑️</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Indicador de Réplica (se esta mensagem é uma resposta) */}
-                {msg.replyTo_autor && (
-                  <View style={styles.replyIndicator}>
-                    <Text style={styles.replyIndicatorText}>
-                      ↩ Respondendo a {formatarNomeCurto(msg.replyTo_autor)}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Texto da mensagem com @menções destacadas */}
-                {renderTextoComMencoes(msg.texto, styles.mensagemTexto)}
-              </View>
-            ))
+                );
+              })}
+            </View>
           )}
         </View>
 
@@ -957,11 +976,11 @@ const styles = StyleSheet.create({
     color: COLORS.gray500,
   },
 
-  // Texto do Pedido
+  // Texto do Pedido (largura total)
   textoSection: {
     backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg,
-    borderRadius: RADIUS.lg,
+    marginHorizontal: 0,
+    borderRadius: 0,
     padding: SPACING.lg,
     ...SHADOWS.md,
     marginBottom: SPACING.md,
@@ -985,16 +1004,15 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
 
-  // Intercessão (botão + contador lado a lado)
+  // Intercessão (largura total)
   intercessaoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: SPACING.lg,
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    marginHorizontal: 0,
     marginBottom: SPACING.md,
     backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    borderRadius: 0,
+    padding: SPACING.lg,
     ...SHADOWS.md,
   },
   intercederBtn: {
@@ -1002,27 +1020,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.full,
-    paddingVertical: 12,
-    paddingHorizontal: SPACING.lg,
-    ...SHADOWS.sm,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 16,
+    gap: SPACING.sm,
+    ...SHADOWS.md,
   },
   intercederBtnDisabled: {
     opacity: 0.7,
   },
   intercederBtnIcon: {
-    fontSize: 20,
-    marginRight: SPACING.sm,
+    fontSize: 24,
   },
   intercederBtnText: {
     color: COLORS.white,
-    fontSize: FONTS.sizes.md,
+    fontSize: FONTS.sizes.lg,
     fontWeight: 'bold',
   },
   intercessoresInfo: {
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: SPACING.xs,
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
   },
   intercessoresIcon: {
     fontSize: 18,
@@ -1031,7 +1050,6 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     color: COLORS.gray300,
     fontWeight: '300',
-    marginHorizontal: 2,
   },
   intercessoresCount: {
     fontSize: FONTS.sizes.md,
@@ -1060,11 +1078,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Mensagens de Apoio
+  // Mensagens de Apoio (largura total)
   mensagensSection: {
     backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg,
-    borderRadius: RADIUS.lg,
+    marginHorizontal: 0,
+    borderRadius: 0,
     padding: SPACING.lg,
     ...SHADOWS.md,
   },
@@ -1093,13 +1111,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.xs,
   },
+  mensagemTimeline: {
+    position: 'relative',
+    paddingLeft: SPACING.md,
+  },
+  mensagemLine: {
+    position: 'absolute',
+    left: 16,
+    top: 32,
+    bottom: 0,
+    width: 2,
+    backgroundColor: COLORS.gray200,
+  },
+  mensagemCardWrapper: {
+    position: 'relative',
+    marginBottom: SPACING.sm,
+  },
   mensagemCard: {
     backgroundColor: COLORS.gray50,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
-    marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.gray200,
+    marginLeft: SPACING.md,
+    position: 'relative',
+  },
+  mensagemCardAutor: {
+    backgroundColor: COLORS.primary + '08',
+    borderColor: COLORS.primary + '25',
   },
   mensagemHeader: {
     flexDirection: 'row',
@@ -1107,9 +1146,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   mensagemAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1117,7 +1156,7 @@ const styles = StyleSheet.create({
   },
   mensagemAvatarText: {
     color: COLORS.white,
-    fontSize: FONTS.sizes.xs,
+    fontSize: FONTS.sizes.sm,
     fontWeight: 'bold',
   },
   mensagemInfo: {
@@ -1136,6 +1175,29 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.sm,
     color: COLORS.gray600,
     lineHeight: 20,
+  },
+  mensagemAutorBadge: {
+    backgroundColor: COLORS.primary + '20',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginLeft: SPACING.xs,
+  },
+  mensagemAutorBadgeText: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  mensagemDot: {
+    position: 'absolute',
+    left: -SPACING.md - 12,
+    top: 18,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.white,
   },
 
   // @Menção destacada no texto
