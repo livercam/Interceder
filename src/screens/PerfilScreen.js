@@ -14,6 +14,8 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -22,9 +24,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useAlert } from '../contexts/AlertContext';
 import KebabMenu from '../components/KebabMenu';
 import { formatarNomeCurto } from '../utils/formatters';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../services/firebaseConfig';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../services/firebaseConfig';
 import { COLLECTIONS } from '../constants/firestore';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // ============================================================
 // Helper para montar lista de distintivos (exceto título ministerial)
@@ -67,6 +72,81 @@ export default function PerfilScreen({ navigation }) {
   const { showAlert } = useAlert();
 
   const [imagemComErro, setImagemComErro] = useState(false);
+  const [fotoModalVisivel, setFotoModalVisivel] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+
+  // ============================================================
+  // Selecionar foto da câmera ou galeria
+  // ============================================================
+  const handleSelecionarFoto = useCallback(async (tipo) => {
+    setFotoModalVisivel(false);
+
+    try {
+      let result;
+
+      if (tipo === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera para tirar foto.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permissão necessária', 'Precisamos de acesso à galeria.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+      }
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const uriOriginal = result.assets[0].uri;
+
+      // Comprimir para no máximo 400x400 com qualidade 70%
+      setEnviandoFoto(true);
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uriOriginal,
+        [{ resize: { width: 400, height: 400 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      // Upload para Firebase Storage
+      const response = await fetch(manipResult.uri);
+      const blob = await response.blob();
+
+      const nomeArquivo = `perfis/${user.uid}.jpg`;
+      const storageRef = ref(storage, nomeArquivo);
+      await uploadBytes(storageRef, blob);
+
+      const fotoUrl = await getDownloadURL(storageRef);
+
+      // Salvar no Firestore
+      await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+        foto_url: fotoUrl,
+      }, { merge: true });
+
+      // Atualizar imagem na tela
+      setImagemComErro(false);
+      Alert.alert('✅ Foto atualizada!', 'Sua foto de perfil foi alterada com sucesso.');
+    } catch (error) {
+      console.warn('[Foto] Erro:', error.message);
+      Alert.alert('Erro', 'Não foi possível atualizar a foto. Tente novamente.');
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }, [user?.uid]);
 
   const handleLogout = useCallback(() => {
     showAlert({
@@ -226,7 +306,8 @@ export default function PerfilScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.cameraBadge}
                   activeOpacity={0.8}
-                  onPress={() => {}}
+                  onPress={() => setFotoModalVisivel(true)}
+                  disabled={enviandoFoto}
                 >
                   <Ionicons name="camera" size={14} color={COLORS.primary} />
                 </TouchableOpacity>
@@ -380,6 +461,57 @@ export default function PerfilScreen({ navigation }) {
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
+
+      {/* ============================================================ */}
+      {/* MODAL: Escolher foto (Câmera ou Galeria) */}
+      {/* ============================================================ */}
+      <Modal
+        visible={fotoModalVisivel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFotoModalVisivel(false)}
+      >
+        <View style={styles.fotoModalOverlay}>
+          <View style={styles.fotoModalContainer}>
+            <Text style={styles.fotoModalTitulo}>📸 Alterar Foto</Text>
+
+            {enviandoFoto ? (
+              <View style={styles.fotoModalCarregando}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.fotoModalCarregandoText}>Enviando foto...</Text>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.fotoModalOpcao}
+                  onPress={() => handleSelecionarFoto('camera')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="camera-outline" size={28} color={COLORS.primary} />
+                  <Text style={styles.fotoModalOpcaoText}>Tirar Foto</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.fotoModalOpcao}
+                  onPress={() => handleSelecionarFoto('galeria')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="images-outline" size={28} color={COLORS.primary} />
+                  <Text style={styles.fotoModalOpcaoText}>Escolher da Galeria</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.fotoModalCancelar}
+                  onPress={() => setFotoModalVisivel(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.fotoModalCancelarText}>Cancelar</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -565,6 +697,63 @@ const styles = StyleSheet.create({
   logoutLinkText: {
     color: COLORS.danger,
     fontSize: FONTS.sizes.md,
+    fontWeight: '600',
+  },
+
+  // Modal Foto
+  fotoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  fotoModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: SPACING.lg,
+    paddingBottom: Platform.OS === 'ios' ? 40 : SPACING.lg,
+  },
+  fotoModalTitulo: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  fotoModalCarregando: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xl,
+    gap: SPACING.md,
+  },
+  fotoModalCarregandoText: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.gray500,
+  },
+  fotoModalOpcao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.sm,
+    gap: SPACING.md,
+    backgroundColor: '#F9FAFB',
+  },
+  fotoModalOpcaoText: {
+    fontSize: FONTS.sizes.md,
+    color: '#1F2937',
+    fontWeight: '600',
+  },
+  fotoModalCancelar: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    marginTop: SPACING.sm,
+  },
+  fotoModalCancelarText: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.gray500,
     fontWeight: '600',
   },
 

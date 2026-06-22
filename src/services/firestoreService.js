@@ -280,13 +280,11 @@ export const intercederPorPedido = async (pedidoId, userUid, minutosOrados = 1) 
     intercessores_uids: arrayUnion(userUid),
   });
 
-  // Atualiza as estatísticas do utilizador (gamificação)
-  await setDoc(doc(db, COLLECTIONS.USERS, userUid), {
-    'stats.oracoes_feitas': increment(1),
-  }, { merge: true });
-
   // ============================================================
   // ESTATÍSTICAS DE ORAÇÃO (Gamificação)
+  // Nota: registrarEstatisticasOracao já incrementa oracoes_feitas,
+  //       oracoes_hoje e minutos_semana com lógica de reset diário/semanal.
+  //       NÃO duplicar com outro increment() aqui.
   // ============================================================
   try {
     await registrarEstatisticasOracao(userUid, minutosOrados);
