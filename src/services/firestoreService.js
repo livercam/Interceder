@@ -1,3 +1,4 @@
+
 // Serviço Firestore - Operações CRUD para Pedidos de Oração
 // Inclui validação Regex, listagem em tempo real, intercessão e denúncia
 
@@ -98,14 +99,16 @@ export const updateUserProfile = async (uid, data) => {
 
 /**
  * Salva o token de notificação push do utilizador no Firestore.
- * O token é armazenado no campo expo_push_token do documento do utilizador.
+ * O token é armazenado no campo fcm_token para compatibilidade
+ * com as Cloud Functions que já usam fcm_token.
  *
  * @param {string} userId - UID do utilizador
- * @param {string} token - Token Expo Push
+ * @param {string} token - Token FCM
  */
 export const salvarPushToken = async (userId, token) => {
   await setDoc(doc(db, COLLECTIONS.USERS, userId), {
-    expo_push_token: token,
+    fcm_token: token,
+    expo_push_token: token, // fallback para usuários antigos
   }, { merge: true });
 };
 
@@ -249,7 +252,7 @@ export const listarPedidosDaCelula = (celulaId, callback) => {
  * @param {string|null} userUid - UID do utilizador (null para visitantes)
  * @throws {Error} - Se o utilizador já intercedeu por este pedido
  */
-export const intercederPorPedido = async (pedidoId, userUid) => {
+export const intercederPorPedido = async (pedidoId, userUid, minutosOrados = 1) => {
   // Visitantes podem interceder sem verificação de duplicado
   if (!userUid) {
     await updateDoc(doc(db, COLLECTIONS.PEDIDOS_ORACAO, pedidoId), {
@@ -286,7 +289,7 @@ export const intercederPorPedido = async (pedidoId, userUid) => {
   // ESTATÍSTICAS DE ORAÇÃO (Gamificação)
   // ============================================================
   try {
-    await registrarEstatisticasOracao(userUid);
+    await registrarEstatisticasOracao(userUid, minutosOrados);
   } catch (statsError) {
     // Resiliência: falha nas estatísticas não deve impedir a intercessão
     console.warn('[Estatísticas] Erro ao atualizar:', statsError.message);
@@ -313,7 +316,7 @@ export const intercederPorPedido = async (pedidoId, userUid) => {
       // Notificação Push (se tiver token)
       const autorSnap = await getDoc(doc(db, COLLECTIONS.USERS, autorPedidoId));
       if (autorSnap.exists()) {
-        const pushToken = autorSnap.data().expo_push_token;
+        const pushToken = autorSnap.data().fcm_token || autorSnap.data().expo_push_token;
         if (pushToken) {
           await enviarNotificacaoPush(
             pushToken,
@@ -684,7 +687,7 @@ export const inscreverNaCelula = async (celulaId, userUid) => {
         );
 
         // Notificação Push com deep link para a tela de gestão de membros
-        const pushToken = userData?.expo_push_token;
+        const pushToken = userData?.fcm_token || userData?.expo_push_token;
         if (pushToken) {
           promessasNotif.push(
             enviarNotificacaoPush(
@@ -900,7 +903,7 @@ export const adicionarConteudoEnsino = async (celulaId, titulo, mensagem, linkEx
       );
 
       // Notificação Push (se tiver token)
-      const pushToken = userData?.expo_push_token;
+      const pushToken = userData?.fcm_token || userData?.expo_push_token;
       if (pushToken) {
         promessas.push(
           enviarNotificacaoPush(
@@ -970,7 +973,7 @@ export const adicionarMensagemApoio = async (pedidoId, mensagem) => {
         // Notificação Push (se tiver token)
         const autorSnap = await getDoc(doc(db, COLLECTIONS.USERS, autorPedidoId));
         if (autorSnap.exists()) {
-          const pushToken = autorSnap.data().expo_push_token;
+          const pushToken = autorSnap.data().fcm_token || autorSnap.data().expo_push_token;
           if (pushToken) {
             await enviarNotificacaoPush(
               pushToken,
@@ -1396,7 +1399,7 @@ async function notificarIntercessores(pedidoId, testemunhoId, autorId) {
     );
 
     // Notificação Push (se tiver token)
-    const pushToken = userData?.expo_push_token;
+    const pushToken = userData?.fcm_token || userData?.expo_push_token;
     if (pushToken) {
       promessas.push(
         enviarNotificacaoPush(

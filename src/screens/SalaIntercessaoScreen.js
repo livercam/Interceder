@@ -59,7 +59,9 @@ export default function SalaIntercessaoScreen({ route, navigation }) {
 
     setRegistrando(true);
     try {
-      const resultado = await intercederPorPedido(pedidoId, user.uid);
+      // Calcula minutos orados (arredondado para cima, mínimo 1)
+      const minutosOrados = Math.max(1, Math.round(tempoSegundos / 60));
+      const resultado = await intercederPorPedido(pedidoId, user.uid, minutosOrados);
       resultadoRef.current = resultado;
       // Remover automaticamente da Lista de Oração Pessoal
       await toggleSalvarPedido(user.uid, pedidoId, 'remover');
@@ -70,7 +72,7 @@ export default function SalaIntercessaoScreen({ route, navigation }) {
     } finally {
       setRegistrando(false);
     }
-  }, [pedidoId, user]);
+  }, [pedidoId, user, tempoSegundos]);
 
   // Iniciar animação de pulsação
   useEffect(() => {

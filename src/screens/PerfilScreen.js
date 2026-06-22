@@ -123,22 +123,14 @@ export default function PerfilScreen({ navigation }) {
           </Text>
           <TouchableOpacity
             style={styles.visitanteBtnLogin}
-            onPress={async () => {
-              try {
-                await logoutUser();
-              } catch {}
-            }}
+            onPress={() => navigation.navigate('Login')}
             activeOpacity={0.85}
           >
             <Text style={styles.visitanteBtnLoginText}>Entrar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.visitanteBtnCadastro}
-            onPress={async () => {
-              try {
-                await logoutUser();
-              } catch {}
-            }}
+            onPress={() => navigation.navigate('Login')}
             activeOpacity={0.85}
           >
             <Text style={styles.visitanteBtnCadastroText}>Criar Conta</Text>
