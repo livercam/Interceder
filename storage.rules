@@ -3,9 +3,6 @@ rules_version = '2';
 // ============================================================
 // REGRAS DO FIREBASE STORAGE
 // ============================================================
-// IMPORTANTE: Estas regras são SEPARADAS das regras do Firestore.
-// No Firebase Console, acesse: Storage > Regras e cole este conteúdo.
-// ============================================================
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -16,6 +13,15 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null 
                     && request.auth.token.email == "peterdonie@gmail.com";
+    }
+
+    // 📁 Pasta de fotos de perfil: perfis/{uid}.jpg
+    // Cada usuário só pode escrever no arquivo com seu próprio UID.
+    // Usamos matches() com regex porque startWith() não existe em Storage rules.
+    match /perfis/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null 
+                    && fileName.matches(request.auth.uid + '\\.jpg');
     }
 
     // 📁 Demais arquivos

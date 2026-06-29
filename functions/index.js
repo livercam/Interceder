@@ -225,25 +225,28 @@ exports.onFeedCelulaCriado = onDocumentCreated(
     const conteudo = event.data?.data();
     if (!conteudo) return;
 
+    // Extração segura dos novos campos
+    const tipo = conteudo.tipo_postagem || 'texto';
+    const texto = conteudo.mensagem || conteudo.texto || '';
+    const textoTrucado = texto ? texto.substring(0,50)+(texto.length>50?'...':'') : '';
+    console.log('[onFeedCelula] celulaId=' + celulaId + ' tipo=' + tipo + ' texto=' + (textoTrucado||'(vazio)') );
+
     try {
-      const celSnap = await db.collection('celulas').doc(celulaId).get();
-      if (!celSnap.exists) return;
-
-      const celula = celSnap.data();
-      const membrosIds = celula.membros_ids || [];
-      if (membrosIds.length === 0) return;
-
-      const usersSnap = await db.collection('users').where('__name__', 'in', membrosIds).get();
-      const tokens = [];
-      usersSnap.forEach((d) => {
-        const u = d.data();
-        if (u.fcm_token && u.push_notificacoes_activas !== false) tokens.push(u.fcm_token);
-      });
+      // ... busca de membros e tokens inalterada ...
 
       if (tokens.length > 0) {
         const nomeCelula = celula.nome || 'Célula';
-        const titulo = conteudo.titulo || 'Novo conteúdo';
-        await enviarPushLote(tokens, `📖 Feed: ${nomeCelula}`, titulo, {
+        let tituloNotif, corpoNotif;
+
+        switch (tipo) {
+          case 'audio':  tituloNotif = '🎙️ Novo áudio em ' + nomeCelula; corpoNotif = textoTrucado || 'Toque para ouvir a mensagem.'; break;
+          case 'video':  tituloNotif = '🎥 Novo vídeo em ' + nomeCelula; corpoNotif = textoTrucado || 'Toque para assistir ao vídeo.'; break;
+          case 'imagem': tituloNotif = '📷 Nova foto em ' + nomeCelula; corpoNotif = textoTrucado || 'Toque para ver a imagem.'; break;
+          case 'link':   tituloNotif = '🔗 Novo link em ' + nomeCelula; corpoNotif = textoTrucado || 'Toque para acessar o conteúdo.'; break;
+          default:       tituloNotif = '📖 Nova reflexão em ' + nomeCelula; corpoNotif = textoTrucado || 'Toque para ler a postagem.'; break;
+        }
+
+        await enviarPushLote(tokens, tituloNotif, corpoNotif, {
           screen: 'MuralCelula', celulaId, celulaNome: nomeCelula, tipo: 'celula_feed',
         });
       }

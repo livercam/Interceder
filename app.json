@@ -35,6 +35,12 @@
           "backgroundColor": "#FFFBF5"
         }
       ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Permita que o Interceder acesse seu microfone para gravar mensagens de voz."
+        }
+      ],
       "expo-font"
     ],
     "extra": {

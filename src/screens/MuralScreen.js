@@ -23,8 +23,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { collection, getCountFromServer, query } from 'firebase/firestore';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { CATEGORIAS_PEDIDO, PRIVACIDADE_OPCOES } from '../constants/firestore';
+import { db } from '../services/firebaseConfig';
 import {
   criarPedido,
   listarPedidos,
@@ -225,6 +227,10 @@ const PedidoCard = React.memo(function PedidoCard({ pedido, onDenunciar }) {
           <Text style={styles.statsSeparator}>•</Text>
           <Text style={styles.intercessoresTexto}>
             🙏 {pedido.intercessores_count || 0}
+          </Text>
+          <Text style={styles.statsSeparator}>•</Text>
+          <Text style={styles.intercessoresTexto}>
+            💬 {pedido.mensagens_count || 0}
           </Text>
         </View>
       </View>
@@ -491,6 +497,36 @@ export default function MuralScreen() {
   // IDs das células que o usuário participa
   const userCelulasIds = userProfile?.celulas_inscritas || [];
 
+  // Contagem de mensagens de apoio
+  const [contagensMensagens, setContagensMensagens] = useState({});
+
+  const carregarContagens = useCallback(async (listaPedidos) => {
+    if (!listaPedidos || listaPedidos.length === 0) return;
+    try {
+      const resultados = await Promise.all(
+        listaPedidos.map(async (pedido) => {
+          if (pedido.status === 'respondido' && pedido.testemunho_id) {
+            const q = query(collection(db, 'testemunhos', pedido.testemunho_id, 'mensagens_apoio'));
+            const snap = await getCountFromServer(q);
+            return { id: pedido.id, count: snap.data().count };
+          }
+          const q = query(collection(db, 'pedidos_oracao', pedido.id, 'mensagens_apoio'));
+          const snap = await getCountFromServer(q);
+          return { id: pedido.id, count: snap.data().count };
+        })
+      );
+      const mapa = {};
+      resultados.forEach((r) => { mapa[r.id] = r.count; });
+      setContagensMensagens(mapa);
+    } catch (e) {
+      console.warn('[Mural] Erro ao buscar contagens:', e.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pedidos.length > 0) carregarContagens(pedidos);
+  }, [pedidos.length]); // eslint-disable-line
+
   useEffect(() => {
     // Visitantes também podem visualizar os pedidos (apenas não podem criar)
     // Escutar pedidos públicos em tempo real
@@ -586,11 +622,11 @@ export default function MuralScreen() {
   const renderPedido = useCallback(
     ({ item }) => (
       <PedidoCard
-        pedido={item}
+        pedido={{ ...item, mensagens_count: contagensMensagens[item.id] ?? item.mensagens_count ?? 0 }}
         onDenunciar={handleDenunciar}
       />
     ),
-    [handleDenunciar]
+    [handleDenunciar, contagensMensagens]
   );
 
   // keyExtractor estável

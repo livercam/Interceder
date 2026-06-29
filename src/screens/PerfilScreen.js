@@ -21,15 +21,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { logoutUser } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
+import { updateProfile } from 'firebase/auth';
 import { useAlert } from '../contexts/AlertContext';
 import KebabMenu from '../components/KebabMenu';
 import { formatarNomeCurto } from '../utils/formatters';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../services/firebaseConfig';
+import { db } from '../services/firebaseConfig';
 import { COLLECTIONS } from '../constants/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { uploadAsync } from 'expo-file-system/legacy';
 
 // ============================================================
 // Helper para montar lista de distintivos (exceto título ministerial)
@@ -91,10 +92,10 @@ export default function PerfilScreen({ navigation }) {
           return;
         }
         result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: true,
           aspect: [1, 1],
-          quality: 0.8,
+          quality: 0.5,
         });
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -103,7 +104,7 @@ export default function PerfilScreen({ navigation }) {
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.8,
@@ -122,20 +123,32 @@ export default function PerfilScreen({ navigation }) {
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      // Upload para Firebase Storage
-      const response = await fetch(manipResult.uri);
-      const blob = await response.blob();
+      // Upload via REST API do Firebase Storage (nativo, sem Blob/Base64)
+      const bucketId = 'interceder-ef0cd.firebasestorage.app';
+      const token = await user.getIdToken();
+      const urlDoStorage = `https://firebasestorage.googleapis.com/v0/b/${bucketId}/o?name=perfis%2F${user.uid}.jpg`;
 
-      const nomeArquivo = `perfis/${user.uid}.jpg`;
-      const storageRef = ref(storage, nomeArquivo);
-      await uploadBytes(storageRef, blob);
+      const response = await uploadAsync(urlDoStorage, manipResult.uri, {
+        httpMethod: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'image/jpeg',
+        },
+      });
 
-      const fotoUrl = await getDownloadURL(storageRef);
+      if (response.status !== 200) {
+        throw new Error('Falha no upload via REST API.');
+      }
+
+      const fotoUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketId}/o/perfis%2F${user.uid}.jpg?alt=media`;
 
       // Salvar no Firestore
       await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
         foto_url: fotoUrl,
       }, { merge: true });
+
+      // Atualizar o perfil nativo do Firebase Auth (persiste mesmo antes do Firestore carregar)
+      await updateProfile(user, { photoURL: fotoUrl });
 
       // Atualizar imagem na tela
       setImagemComErro(false);

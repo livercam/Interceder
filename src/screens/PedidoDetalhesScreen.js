@@ -628,9 +628,24 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
       </ScrollView>
 
       {/* ============================================ */}
-      {/* Input de Mensagem (FORA da ScrollView) — Card Elevado */}
+      {/* Pedido Respondido: Card de Testemunho em vez de Input */}
       {/* ============================================ */}
-      {user ? (
+      {pedido?.status === 'respondido' ? (
+        <View style={[styles.inputAreaCard, { paddingBottom: Math.max(insets.bottom, SPACING.sm), paddingVertical: SPACING.lg, alignItems: 'center' }]}>
+          <Text style={{ fontSize: 40, marginBottom: 8 }}>🎉</Text>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.gray800, marginBottom: 4, textAlign: 'center' }}>Oração Respondida!</Text>
+          <Text style={{ fontSize: 14, color: COLORS.gray500, textAlign: 'center', marginBottom: 12, lineHeight: 20 }}>
+            Este pedido já foi respondido. Que tal compartilhar esse testemunho com a comunidade?
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingVertical: 12, paddingHorizontal: 24 }}
+            onPress={() => navigation.navigate('TestemunhoDetalhes', { testemunhoId: pedido.testemunho_id })}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: COLORS.white, fontWeight: 'bold', fontSize: 16 }}>📖 Ver Testemunho</Text>
+          </TouchableOpacity>
+        </View>
+      ) : user ? (
         <View style={[styles.inputAreaCard, { paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
           {/* Barra de Réplica Ativa */}
           {replyingTo && (

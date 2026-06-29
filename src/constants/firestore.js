@@ -4,6 +4,7 @@
 export const COLLECTIONS = {
   USERS: 'users',
   PEDIDOS_ORACAO: 'pedidos_oracao',
+  POSTAGENS: 'postagens',
   CELULAS: 'celulas',
   CONFIGURACOES: 'configuracoes',
   TESTEMUNHOS: 'testemunhos',
@@ -78,3 +79,29 @@ export const CELULA_FIELDS = {
   ENSINO_ATUAL: 'ensino_atual',
   CREATED_AT: 'createdAt',
 };
+
+// ============================================================
+// POSTAGENS
+// ============================================================
+export const POSTAGEM_FIELDS = {
+  ID: 'id',
+  AUTOR_ID: 'autor_id',
+  AUTOR_NOME: 'autor_nome',
+  AUTOR_FOTO_URL: 'autor_foto_url',
+  TEXTO: 'texto',
+  TIPO_POSTAGEM: 'tipo_postagem',     // 'texto' | 'imagem' | 'video' | 'audio' | 'link'
+  ANEXO: 'anexo',                     // { tipo, uri, dadosExtras }
+  CELULA_ID: 'celula_id',             // ID da célula onde foi publicada
+  LIKES_COUNT: 'likes_count',
+  LIKES_UIDS: 'likes_uids',           // Array de UIDs de quem curtiu
+  COMMENTS_COUNT: 'comments_count',
+  CREATED_AT: 'createdAt',
+};
+
+export const TIPOS_POSTAGEM = [
+  { label: 'Texto', value: 'texto' },
+  { label: 'Imagem', value: 'imagem' },
+  { label: 'Vídeo', value: 'video' },
+  { label: 'Áudio', value: 'audio' },
+  { label: 'Link', value: 'link' },
+];

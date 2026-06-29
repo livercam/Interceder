@@ -48,7 +48,11 @@ import { COLLECTIONS } from '../constants/firestore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import DenunciaModal from '../components/DenunciaModal';
+import { AudioModule } from 'expo-audio';
 import KebabMenu from '../components/KebabMenu';
+import { uploadAsync } from 'expo-file-system/legacy';
+import CardPostagem from '../components/CardPostagem';
+import ModalCriacaoPostagem from '../components/ModalCriacaoPostagem';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -233,6 +237,7 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
   const [titulo, setTitulo] = useState('');
   const [mensagem, setMensagem] = useState('');
   const [linkExterno, setLinkExterno] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Preencher campos quando estiver em modo de edição
@@ -245,6 +250,7 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
       setTitulo('');
       setMensagem('');
       setLinkExterno('');
+      setAudioUrl('');
     }
   }, [modoEdicao, conteudoEditar, visible]);
 
@@ -256,10 +262,11 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
 
     setLoading(true);
     try {
-      await onAdicionar(titulo.trim(), mensagem.trim(), linkExterno.trim());
+      await onAdicionar(titulo.trim(), mensagem.trim(), linkExterno.trim(), audioUrl);
       setTitulo('');
       setMensagem('');
       setLinkExterno('');
+      setAudioUrl('');
       onClose();
     } catch (error) {
       Alert.alert('Erro', error.message);
@@ -272,6 +279,7 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
     setTitulo('');
     setMensagem('');
     setLinkExterno('');
+    setAudioUrl('');
     onClose();
   };
 
@@ -336,6 +344,17 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
               />
             </View>
 
+            {/* Gravador de Áudio */}
+            {!ehEdicao && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>🎤 Mensagem de Voz (opcional)</Text>
+                <GravadorAudio
+                  onAudioReady={(url) => setAudioUrl(url)}
+                  onRemove={() => setAudioUrl('')}
+                />
+              </View>
+            )}
+
             <TouchableOpacity
               style={[styles.criarBtn, loading && styles.criarBtnDisabled]}
               onPress={handleSalvar}
@@ -364,10 +383,18 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
 const getIconePorLink = (link) => {
   if (!link) return '📖';
   const l = link.toLowerCase();
+  // Extensões de imagem
+  if (l.match(/\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/)) return '🖼️';
   if (l.includes('youtube.com') || l.includes('youtu.be')) return '🎥';
   if (l.includes('spotify.com') || l.includes('soundcloud') || l.includes('deezer')) return '🎧';
   if (l.includes('drive.google') || l.includes('.pdf') || l.includes('docs.')) return '📄';
   if (l.includes('instagram.com')) return '📱';
+  // Firebase Storage: verifica extensão depois do domínio
+  if (l.includes('firebasestorage.googleapis.com')) {
+    if (l.match(/\.(jpg|jpeg|png|gif|webp|bmp)/)) return '🖼️';
+    if (l.includes('audio/') || l.includes('.m4a') || l.includes('.mp3') || l.includes('.wav')) return '🎧';
+    return '🔗';
+  }
   return '🔗';
 };
 
@@ -376,6 +403,7 @@ const getIconePorLink = (link) => {
 // ============================================================
 function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [celula, setCelula] = useState(null);
   const [membros, setMembros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -388,6 +416,28 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const isLider = celula?.lider_id === userUid;
   const isCoLider = celula?.co_lideres_ids?.includes(userUid);
   const podeGerenciar = isLider || isCoLider;
+
+  const [audioTocando, setAudioTocando] = useState(null);
+  const audioPlayerRef = useRef(null);
+
+  useEffect(() => {
+    return () => { if (audioPlayerRef.current) { audioPlayerRef.current.remove(); } };
+  }, []);
+
+  const handlePlayAudio = useCallback((id, url) => {
+    if (audioTocando === id) {
+      if (audioPlayerRef.current) audioPlayerRef.current.pause();
+      setAudioTocando(null);
+    } else {
+      if (audioPlayerRef.current) audioPlayerRef.current.remove();
+      try {
+        const p = new AudioModule.AudioPlayer({ uri: url }, 500, false, 0);
+        audioPlayerRef.current = p;
+        p.play();
+        setAudioTocando(id);
+      } catch(e) { console.warn(e.message); }
+    }
+  }, [audioTocando]);
 
   // Quantidade de solicitações pendentes para o badge
   const qtdSolicitacoes = celula?.solicitacoes_pendentes?.length || 0;
@@ -484,18 +534,64 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
     carregarMembros();
   }, [celula?.membros_ids]);
 
-  const handleAdicionarConteudo = async (titulo, mensagem, linkExterno) => {
+  const handlePostarFeed = useCallback(async (dadosPostagem) => {
+    const { texto, tipo_postagem, anexo } = dadosPostagem;
+    const textoLimpo = (texto || '').trim();
+    let titulo = textoLimpo.split('\n')[0]?.substring(0, 60) || '';
+    let linkFinal = '';
+
+    try {
+      if (tipo_postagem === 'imagem' && anexo?.uri && anexo.uri !== 'p') {
+        // Upload da imagem selecionada
+        const token = await user.getIdToken();
+        const nomeArquivo = `feed_${Date.now()}.jpg`;
+        const urlStorage = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=feed%2F${celulaId}%2F${nomeArquivo}`;
+        await uploadAsync(urlStorage, anexo.uri, {
+          httpMethod: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
+        });
+        linkFinal = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/feed%2F${celulaId}%2F${nomeArquivo}?alt=media`;
+        titulo = titulo || '📷 Foto';
+      } else if (tipo_postagem === 'link' && anexo?.dadosExtras?.url) {
+        linkFinal = anexo.dadosExtras.url;
+        const tituloLink = anexo?.dadosExtras?.titulo || '';
+        titulo = tituloLink || titulo || '🔗 Link';
+      } else if (tipo_postagem === 'audio' && anexo?.uri) {
+        linkFinal = anexo.uri;
+        const tituloPersonalizado = anexo?.dadosExtras?.tituloPersonalizado || anexo?.dadosExtras?.titulo || '';
+        titulo = tituloPersonalizado || titulo || '🎤 Áudio';
+      } else if (tipo_postagem === 'video' && anexo?.dadosExtras?.video_id) {
+        const vid = anexo.dadosExtras.video_id;
+        const urlOriginal = anexo?.dadosExtras?.url || '';
+        // Salva a URL original do YouTube como link_externo (para getIconePorLink detectar)
+        linkFinal = urlOriginal || `https://youtu.be/${vid}`;
+        titulo = (anexo?.dadosExtras?.titulo || titulo) ? `${anexo?.dadosExtras?.titulo || titulo} 🎬${vid}` : `🎬${vid}`;
+      } else {
+        titulo = titulo || 'Nova postagem';
+      }
+
+      await adicionarConteudoEnsino(celulaId, titulo, textoLimpo, linkFinal, userUid);
+      setShowConteudoModal(false);
+    } catch (error) {
+      console.warn('[Celulas] Erro ao criar postagem feed:', error.message);
+      Alert.alert('Erro', error.message || 'Não foi possível criar a postagem.');
+    }
+  }, [celulaId, userUid, user]);
+
+  const handleAdicionarConteudo = async (titulo, mensagem, linkExterno, audioUrl) => {
+    const linkFinal = audioUrl || linkExterno;
+
     if (editandoConteudo) {
       // Modo edição: chama editarConteudoEnsino
       await editarConteudoEnsino(celulaId, editandoConteudo, {
         titulo,
         mensagem,
-        link_externo: linkExterno,
+        link_externo: linkFinal,
       });
       setEditandoConteudo(null);
     } else {
       // Modo criação: chama adicionarConteudoEnsino com autorUid para notificar membros
-      await adicionarConteudoEnsino(celulaId, titulo, mensagem, linkExterno, userUid);
+      await adicionarConteudoEnsino(celulaId, titulo, mensagem, linkFinal, userUid);
     }
     // onSnapshot atualizará automaticamente
   };
@@ -712,25 +808,18 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
         <Text style={styles.muralCelulaBtnArrow}>→</Text>
       </TouchableOpacity>
 
-      {/* Feed (antigo Ensino da Palavra) */}
+      {/* Feed com CardPostagem */}
       <View style={styles.ensinoSection}>
         <View style={styles.ensinoHeader}>
           <Text style={styles.ensinoTitle}>📖 Feed</Text>
           <View style={styles.ensinoHeaderAcoes}>
             {!podeGerenciar && (
-              <TouchableOpacity
-                style={styles.denunciarFeedBtn}
-                onPress={handleDenunciarFeed}
-                activeOpacity={0.7}
-              >
+              <TouchableOpacity style={styles.denunciarFeedBtn} onPress={handleDenunciarFeed} activeOpacity={0.7}>
                 <Text style={styles.denunciarFeedBtnText}>🚩</Text>
               </TouchableOpacity>
             )}
             {podeGerenciar && (
-              <TouchableOpacity
-                style={styles.atualizarEnsinoBtn}
-                onPress={() => setShowConteudoModal(true)}
-              >
+              <TouchableOpacity style={styles.atualizarEnsinoBtn} onPress={() => setShowConteudoModal(true)}>
                 <Text style={styles.atualizarEnsinoBtnText}>➕ Novo</Text>
               </TouchableOpacity>
             )}
@@ -739,98 +828,50 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
 
         {conteudos.length > 0 ? (
           conteudos.map((conteudo) => {
-            const icone = getIconePorLink(conteudo.link_externo);
-            const tipoIcone = icone === '🎥' ? 'video' : icone === '🎧' ? 'audio' : icone === '📄' ? 'documento' : 'link';
+            const linkExterno = conteudo.link_externo || '';
+            const icone = linkExterno ? getIconePorLink(linkExterno) : '📝';
+            const tipoIcone = icone === '📝' ? 'texto' : icone === '🖼️' ? 'imagem' : icone === '🎥' ? 'video' : icone === '🎧' ? 'audio' : 'link';
 
+            const textoPostagem = conteudo.mensagem || '';
+            const tituloPost = conteudo.titulo || '';
+
+            // Extrai video_id do título (salvo no formato "... 🎬VIDEO_ID")
+            let videoId = '';
+            if (tipoIcone === 'video') {
+              const m = tituloPost.match(/🎬([A-Za-z0-9_-]{11})/);
+              videoId = m ? m[1] : '';
+            }
+
+            const postagemAdaptada = {
+              id: conteudo.id,
+              autor_nome: user?.displayName || 'Líder',
+              autor_foto_url: user?.photoURL || null,
+              autor_id: user?.uid || '',
+              createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
+              texto: textoPostagem,
+              tipo_postagem: tipoIcone,
+              anexo: tipoIcone !== 'texto' && linkExterno ? { tipo: tipoIcone, uri: linkExterno, dadosExtras: { url: linkExterno, video_id: videoId, titulo: tituloPost, descricao: textoPostagem } } : null,
+            };
             return (
-              <View key={conteudo.id} style={[styles.feedCard, { borderColor: tipoIcone === 'video' ? '#EF4444' : tipoIcone === 'audio' ? '#8B5CF6' : tipoIcone === 'documento' ? '#F59E0B' : '#3B82F6' }]}>
-                {/* Header com ícone grande + título + ações */}
-                <View style={styles.feedCardHeader}>
-                  <View style={styles.feedCardIconArea}>
-                    <Text style={styles.feedCardIcon}>{icone}</Text>
-                  </View>
-                  <View style={styles.feedCardTituloArea}>
-                    <Text style={styles.feedCardTitulo} numberOfLines={2}>
-                      {conteudo.titulo || 'Sem título'}
-                    </Text>
-                  </View>
-                  {podeGerenciar && (
-                    <View style={styles.feedCardAcoes}>
-                      <TouchableOpacity
-                        style={styles.feedCardBtnAcao}
-                        onPress={() => handleAbrirEdicao(conteudo)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Text style={styles.feedCardBtnAcaoText}>✏️</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.feedCardBtnAcao}
-                        onPress={() => {
-                          Alert.alert('Excluir Conteúdo', 'Tem certeza que deseja apagar este material?', [
-                            { text: 'Cancelar', style: 'cancel' },
-                            { text: 'Excluir', style: 'destructive', onPress: async () => {
-                              try { await removerConteudoEnsino(celulaId, conteudo); }
-                              catch (error) { Alert.alert('Erro', 'Não foi possível excluir.'); }
-                            }},
-                          ]);
-                        }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Text style={styles.feedCardBtnAcaoText}>🗑️</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-
-                {/* Mensagem (estilo quote) */}
-                {conteudo.mensagem ? (
-                  <View style={styles.feedCardMensagemArea}>
-                    <Text style={styles.feedCardMensagemIcon}>📝</Text>
-                    <Text style={styles.feedCardMensagem} numberOfLines={4}>
-                      {conteudo.mensagem}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {/* Botão de ação principal */}
-                {conteudo.link_externo ? (
-                  <TouchableOpacity
-                    style={[styles.feedCardBtnPrincipal, {
-                      backgroundColor: tipoIcone === 'video' ? '#EF4444' : tipoIcone === 'audio' ? '#8B5CF6' : tipoIcone === 'documento' ? '#F59E0B' : '#3B82F6',
-                    }]}
-                    onPress={() => handleAbrirLink(conteudo.link_externo)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.feedCardBtnPrincipalIcon}>
-                      {tipoIcone === 'video' ? '▶️' : tipoIcone === 'audio' ? '🎵' : tipoIcone === 'documento' ? '📄' : '🔗'}
-                    </Text>
-                    <Text style={styles.feedCardBtnPrincipalText}>
-                      {tipoIcone === 'video' ? 'Assistir' : tipoIcone === 'audio' ? 'Ouvir' : tipoIcone === 'documento' ? 'Ler' : 'Acessar'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-
-                {/* Rodapé com data */}
-                <View style={styles.feedCardFooter}>
-                  <Text style={styles.feedCardData}>
-                    {conteudo.criadoEm ? (() => {
-                      const d = new Date(conteudo.criadoEm);
-                      const agora = new Date();
-                      const diffDias = Math.floor((agora - d) / (1000 * 60 * 60 * 24));
-                      if (diffDias === 0) return 'Hoje';
-                      if (diffDias === 1) return 'Ontem';
-                      if (diffDias < 7) return `Há ${diffDias} dias`;
-                      if (diffDias < 30) return `Há ${Math.floor(diffDias / 7)} sem`;
-                      return d.toLocaleDateString('pt-BR');
-                    })() : ''}
-                  </Text>
-                  <View style={styles.feedCardTipoBadge}>
-                    <Text style={styles.feedCardTipoBadgeText}>
-                      {tipoIcone === 'video' ? '🎬 Vídeo' : tipoIcone === 'audio' ? '🎧 Áudio' : tipoIcone === 'documento' ? '📄 Estudo' : '🔗 Link'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+              <CardPostagem
+                key={conteudo.id}
+                postagem={postagemAdaptada}
+                userId={user?.uid}
+                onPressPerfil={() => {}}
+                onLike={() => {}}
+                onComment={() => {}}
+                onShare={() => {}}
+                onEditar={() => handleAbrirEdicao(conteudo)}
+                onExcluir={async () => {
+                  Alert.alert('Excluir postagem', 'Tem certeza?', [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Excluir', style: 'destructive', onPress: async () => {
+                      try { await removerConteudoEnsino(celulaId, conteudo); }
+                      catch (error) { Alert.alert('Erro', 'Não foi possível excluir.'); }
+                    }},
+                  ]);
+                }}
+              />
             );
           })
         ) : (
@@ -911,14 +952,23 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
 
       <View style={{ height: SPACING.xxl }} />
 
-      {/* Modal de Adicionar/Editar Conteúdo */}
-      <AdicionarConteudoModal
-        visible={showConteudoModal}
-        onClose={handleFecharModalConteudo}
-        onAdicionar={handleAdicionarConteudo}
-        modoEdicao={!!editandoConteudo}
-        conteudoEditar={editandoConteudo}
+      {/* Modal de Criação de Postagem (Novo Feed) */}
+      <ModalCriacaoPostagem
+        visible={showConteudoModal && !editandoConteudo}
+        onFechar={handleFecharModalConteudo}
+        onPostar={handlePostarFeed}
       />
+
+      {/* Modal de Edição de Conteúdo (legado) */}
+      {editandoConteudo && (
+        <AdicionarConteudoModal
+          visible={showConteudoModal}
+          onClose={handleFecharModalConteudo}
+          onAdicionar={handleAdicionarConteudo}
+          modoEdicao={true}
+          conteudoEditar={editandoConteudo}
+        />
+      )}
 
       {/* Modal de Denúncia (Lateral Animado) */}
       <DenunciaModal
@@ -1978,6 +2028,45 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: FONTS.sizes.sm,
     fontWeight: '700',
+
+  audioPlayerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7C3AED',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    gap: 10,
+  },
+  audioPlayBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioInfoArea: {
+    flex: 1,
+    gap: 4,
+  },
+  audioInfoText: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  audioProgressBar: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  audioProgressFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+  },
   },
   feedCardFooter: {
     flexDirection: 'row',

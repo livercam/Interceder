@@ -23,7 +23,9 @@ import {
   Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { collection, getCountFromServer, query } from 'firebase/firestore';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { db } from '../services/firebaseConfig';
 import {
   adicionarTestemunho,
   listarTestemunhos,
@@ -156,6 +158,7 @@ const TestemunhoCard = React.memo(function TestemunhoCard({ testemunho }) {
         </View>
         <View style={styles.interacaoItem}>
           <Text style={styles.interacaoIcone}>💬</Text>
+          <Text style={styles.interacaoContador}>{testemunho.mensagens_count || 0}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -418,6 +421,31 @@ export default function TestemunhosScreen() {
   const cargoAtual = userProfile?.titulo_ministerial || 'membro';
   const isPremiumAtual = userProfile?.isPremium === true || false;
 
+  // Contagem de mensagens de parabéns
+  const [contagensMensagens, setContagensMensagens] = useState({});
+
+  const carregarContagens = useCallback(async (lista) => {
+    if (!lista || lista.length === 0) return;
+    try {
+      const resultados = await Promise.all(
+        lista.map(async (item) => {
+          const q = query(collection(db, 'testemunhos', item.id, 'mensagens_apoio'));
+          const snap = await getCountFromServer(q);
+          return { id: item.id, count: snap.data().count };
+        })
+      );
+      const mapa = {};
+      resultados.forEach((r) => { mapa[r.id] = r.count; });
+      setContagensMensagens(mapa);
+    } catch (e) {
+      console.warn('[Testemunhos] Erro ao buscar contagens:', e.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (testemunhos.length > 0) carregarContagens(testemunhos);
+  }, [testemunhos.length]);
+
   // Escutar testemunhos em tempo real
   useEffect(() => {
     const unsubscribe = listarTestemunhos((testemunhosAtualizados) => {
@@ -433,8 +461,8 @@ export default function TestemunhosScreen() {
 
   // Renderizar cada cartão (memoizado)
   const renderTestemunho = useCallback(
-    ({ item }) => <TestemunhoCard testemunho={item} />,
-    []
+    ({ item }) => <TestemunhoCard testemunho={{ ...item, mensagens_count: contagensMensagens[item.id] ?? 0 }} />,
+    [contagensMensagens]
   );
 
   // Estado vazio

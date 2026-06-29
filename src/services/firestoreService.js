@@ -169,6 +169,7 @@ export const criarPedido = async (
     intercessores_count: 0,
     status: 'ativo',
     denuncias_uids: [],
+    mensagens_count: 0,
     createdAt: serverTimestamp(),
   };
 
@@ -854,141 +855,34 @@ export const adicionarConteudoEnsino = async (celulaId, titulo, mensagem, linkEx
   await updateDoc(doc(db, COLLECTIONS.CELULAS, celulaId), {
     conteudos_ensino: arrayUnion({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      titulo,
-      mensagem,
-      link_externo: linkExterno,
+      titulo: (titulo || '').substring(0, 120),
+      mensagem: (mensagem || '').substring(0, 500),
+      link_externo: linkExterno || '',
       criadoEm: new Date().toISOString(),
     }),
   });
 
-  // ============================================================
-  // NOTIFICAR MEMBROS DA CÉLULA
-  // ============================================================
   try {
     const celulaSnap = await getDoc(doc(db, COLLECTIONS.CELULAS, celulaId));
     if (!celulaSnap.exists()) return;
-
     const celula = celulaSnap.data();
     const membrosIds = celula.membros_ids || [];
-
-    // Filtrar o autor (se fornecido) para não notificar a si mesmo
-    const uidsParaNotificar = autorUid
-      ? membrosIds.filter((uid) => uid !== autorUid)
-      : membrosIds;
-
+    const uidsParaNotificar = autorUid ? membrosIds.filter((uid) => uid !== autorUid) : membrosIds;
     if (uidsParaNotificar.length === 0) return;
-
-    // Buscar tokens push de todos os membros em paralelo
-    const usersSnap = await Promise.all(
-      uidsParaNotificar.map((uid) => getDoc(doc(db, COLLECTIONS.USERS, uid)))
-    );
-
+    const usersSnap = await Promise.all(uidsParaNotificar.map((uid) => getDoc(doc(db, COLLECTIONS.USERS, uid))));
+    const corpoNotif = (titulo || mensagem)
+      ? ((titulo || '').substring(0, 60) + ((titulo && mensagem) ? ' — ' : '') + (mensagem || '').substring(0, 80)).substring(0, 150)
+      : 'Nova postagem de mídia na célula!';
     const promessas = [];
-
     for (let i = 0; i < uidsParaNotificar.length; i++) {
       const membroUid = uidsParaNotificar[i];
       const userData = usersSnap[i]?.data();
-
-      // Notificação In-App
-      promessas.push(
-        criarNotificacao(
-          membroUid,
-          `📖 Novo Feed em "${celula.nome}"`,
-          `${titulo}${mensagem ? ` — ${mensagem.slice(0, 80)}${mensagem.length > 80 ? '...' : ''}` : ''}`,
-          'celula_feed',
-          celulaId
-        )
-      );
-
-      // Notificação Push (se tiver token)
-      const pushToken = userData?.fcm_token || userData?.expo_push_token;
-      if (pushToken) {
-        promessas.push(
-          enviarNotificacaoPush(
-            pushToken,
-            `📖 Novo Feed em "${celula.nome}"`,
-            `${titulo}${mensagem ? ` — ${mensagem.slice(0, 100)}${mensagem.length > 100 ? '...' : ''}` : ''}`,
-            {
-              screen: 'MuralCelula',
-              celulaId,
-              celulaNome: celula.nome,
-              tipo: 'celula_feed',
-            }
-          )
-        );
-      }
+      promessas.push(criarNotificacao(membroUid, '📖 Feed: ' + celula.nome, corpoNotif, 'celula_feed', celulaId));
     }
-
-    // Disparar todas as notificações em paralelo (não bloqueante)
     await Promise.all(promessas);
   } catch (notifError) {
-    // Resiliência: falha nas notificações não deve impedir a publicação do feed
-    console.warn('[Notificação] Erro ao notificar membros da célula:', notifError.message);
+    console.warn('[Notificação] Erro ao notificar:', notifError.message);
   }
-};
-
-/**
- * Adiciona uma mensagem de apoio a um pedido de oração.
- * Salva em uma subcoleção 'mensagens_apoio' dentro do documento do pedido.
- * Após salvar, dispara notificações In-App e Push para o autor do pedido
- * (se o autor for diferente de quem comentou).
- *
- * @param {string} pedidoId - ID do pedido de oração
- * @param {object} mensagem - Objeto { autor_id, autor_nome, texto }
- * @returns {Promise<string>} - ID da mensagem criada
- */
-export const adicionarMensagemApoio = async (pedidoId, mensagem) => {
-  const mensagemData = {
-    ...mensagem,
-    criadoEm: new Date().toISOString(),
-  };
-  const docRef = await addDoc(
-    collection(db, COLLECTIONS.PEDIDOS_ORACAO, pedidoId, 'mensagens_apoio'),
-    mensagemData
-  );
-
-  // ============================================================
-  // GATILHO DE NOTIFICAÇÃO (Mensagem de Apoio)
-  // ============================================================
-  try {
-    // Buscar o pedido para obter o autor_id
-    const pedidoSnap = await getDoc(doc(db, COLLECTIONS.PEDIDOS_ORACAO, pedidoId));
-    if (pedidoSnap.exists()) {
-      const pedidoData = pedidoSnap.data();
-      const autorPedidoId = pedidoData.autor_id;
-
-      // Só notificar se o autor do pedido for diferente de quem comentou
-      if (autorPedidoId && autorPedidoId !== mensagem.autor_id) {
-        // Notificação In-App
-        await criarNotificacao(
-          autorPedidoId,
-          'Nova mensagem 🙏',
-          'Alguém deixou uma palavra no seu pedido.',
-          'apoio',
-          pedidoId
-        );
-
-        // Notificação Push (se tiver token)
-        const autorSnap = await getDoc(doc(db, COLLECTIONS.USERS, autorPedidoId));
-        if (autorSnap.exists()) {
-          const pushToken = autorSnap.data().fcm_token || autorSnap.data().expo_push_token;
-          if (pushToken) {
-            await enviarNotificacaoPush(
-              pushToken,
-              'Nova mensagem 🙏',
-              'Alguém deixou uma palavra no seu pedido.',
-              { pedidoId }
-            );
-          }
-        }
-      }
-    }
-  } catch (notifError) {
-    // Resiliência: falha nas notificações não deve impedir o comentário
-    console.warn('[Notificação] Erro ao notificar sobre mensagem de apoio:', notifError.message);
-  }
-
-  return docRef.id;
 };
 
 /**
@@ -998,6 +892,26 @@ export const adicionarMensagemApoio = async (pedidoId, mensagem) => {
  * @param {function} callback - Função chamada com a lista de mensagens
  * @returns {function} - Função para cancelar a inscrição
  */
+
+/**
+ * Adiciona uma mensagem de apoio a um pedido.
+ * Salva em uma subcoleção 'mensagens_apoio' dentro do documento do pedido.
+ *
+ * @param {string} pedidoId - ID do pedido de oração
+ * @param {object} mensagem - Objeto { autor_id, autor_nome, texto, replyTo_id, replyTo_autor, mentions }
+ * @returns {Promise<string>} - ID da mensagem criada
+ */
+export const adicionarMensagemApoio = async (pedidoId, mensagem) => {
+  const mensagemData = {
+    ...mensagem,
+    criadoEm: serverTimestamp(),
+  };
+  const docRef = await addDoc(
+    collection(db, COLLECTIONS.PEDIDOS_ORACAO, pedidoId, 'mensagens_apoio'),
+    mensagemData
+  );
+  return docRef.id;
+};
 export const listarMensagensApoio = (pedidoId, callback) => {
   const q = query(
     collection(db, COLLECTIONS.PEDIDOS_ORACAO, pedidoId, 'mensagens_apoio'),
@@ -2535,3 +2449,136 @@ export async function listarNotificacoes(userId) {
   });
   return notificacoes;
 }
+
+// ============================================================
+// POSTAGENS DA CÉLULA
+// ============================================================
+
+/**
+ * Cria uma nova postagem na célula.
+ * Valida texto ofensivo e dados obrigatórios antes de enviar.
+ *
+ * @param {object} dados - { texto, tipo_postagem, anexo }
+ * @param {object} autor - { uid, nome, foto_url }
+ * @param {string} celulaId - ID da célula destino
+ * @returns {Promise<string>} - ID da postagem criada
+ */
+export const criarPostagem = async (dados, autor, celulaId) => {
+  if (!autor || !autor.uid || !autor.nome) {
+    throw new Error('Apenas usuários cadastrados podem criar postagens.');
+  }
+  if (!celulaId) {
+    throw new Error('ID da célula é obrigatório.');
+  }
+
+  const texto = dados.texto || '';
+  if (texto && contemPalavraOfensiva(texto)) {
+    throw new Error('Sua postagem contém palavras inadequadas. Por favor, revise o texto.');
+  }
+
+  const postagemData = {
+    autor_id: autor.uid,
+    autor_nome: autor.nome,
+    autor_foto_url: autor.foto_url || null,
+    texto: texto,
+    tipo_postagem: dados.tipo_postagem || 'texto',
+    anexo: dados.anexo || null,
+    celula_id: celulaId,
+    likes_count: 0,
+    likes_uids: [],
+    comments_count: 0,
+    createdAt: serverTimestamp(),
+  };
+
+  const docRef = await addDoc(collection(db, COLLECTIONS.POSTAGENS), postagemData);
+  return docRef.id;
+};
+
+/**
+ * Escuta as postagens de uma célula em tempo real.
+ * Retorna as postagens ordenadas por data decrescente.
+ *
+ * @param {string} celulaId - ID da célula
+ * @param {function} callback - Função chamada com a lista de postagens
+ * @returns {function} - Função para cancelar a inscrição
+ */
+export const listarPostagensDaCelula = (celulaId, callback) => {
+  const dataLimite = new Date();
+  dataLimite.setDate(dataLimite.getDate() - 90); // últimas 90 dias
+
+  const q = query(
+    collection(db, COLLECTIONS.POSTAGENS),
+    where('celula_id', '==', celulaId),
+    where('createdAt', '>=', dataLimite),
+    orderBy('createdAt', 'desc'),
+    limit(100)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const postagens = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    callback(postagens);
+  });
+};
+
+/**
+ * Alterna o like de um usuário em uma postagem.
+ * Se o usuário já curtiu, remove o like. Caso contrário, adiciona.
+ *
+ * @param {string} postagemId - ID da postagem
+ * @param {string} userId - UID do usuário
+ * @returns {Promise<boolean>} - true se adicionou like, false se removeu
+ */
+export const toggleLikePostagem = async (postagemId, userId) => {
+  if (!userId) throw new Error('Usuário não autenticado.');
+
+  const postagemRef = doc(db, COLLECTIONS.POSTAGENS, postagemId);
+  const postagemSnap = await getDoc(postagemRef);
+
+  if (!postagemSnap.exists()) {
+    throw new Error('Postagem não encontrada.');
+  }
+
+  const postagem = postagemSnap.data();
+  const likesUids = postagem.likes_uids || [];
+  const jaCurtiu = likesUids.includes(userId);
+
+  if (jaCurtiu) {
+    await updateDoc(postagemRef, {
+      likes_uids: arrayRemove(userId),
+      likes_count: increment(-1),
+    });
+    return false;
+  } else {
+    await updateDoc(postagemRef, {
+      likes_uids: arrayUnion(userId),
+      likes_count: increment(1),
+    });
+    return true;
+  }
+};
+
+/**
+ * Remove uma postagem (apenas o autor pode remover).
+ *
+ * @param {string} postagemId - ID da postagem
+ * @param {string} userId - UID do autor
+ * @throws {Error} - Se não for o autor
+ */
+export const removerPostagem = async (postagemId, userId) => {
+  const postagemRef = doc(db, COLLECTIONS.POSTAGENS, postagemId);
+  const postagemSnap = await getDoc(postagemRef);
+
+  if (!postagemSnap.exists()) {
+    throw new Error('Postagem não encontrada.');
+  }
+
+  const postagem = postagemSnap.data();
+  if (postagem.autor_id !== userId) {
+    throw new Error('Apenas o autor pode remover a postagem.');
+  }
+
+  await deleteDoc(postagemRef);
+};
