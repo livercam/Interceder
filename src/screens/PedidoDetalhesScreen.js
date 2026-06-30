@@ -465,23 +465,46 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
 
         </View>
 
-        {/* ============================================ */}
-        {/* Texto Completo do Pedido */}
-        {/* ============================================ */}
-        <View style={styles.textoSection}>
-          <View style={styles.textoLabelRow}>
-            <Text style={styles.textoLabel}>📝 Pedido de Oração</Text>
-            <TouchableOpacity
-              style={styles.denunciarBtn}
-              onPress={handleDenunciar}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.denunciarBtnText}>🚩</Text>
-            </TouchableOpacity>
+        <View style={styles.pedidoContainer}>
+          <View style={styles.pedidoHeader}>
+            <View style={styles.pedidoHeaderLeft}>
+              <View style={styles.pedidoIconBg}>
+                <Text style={{ fontSize: 18 }}>📝</Text>
+              </View>
+              <View style={styles.pedidoTitleCol}>
+                <Text style={styles.pedidoTitle}>Pedido de Oração</Text>
+                <View style={styles.pedidoUnderline} />
+              </View>
+            </View>
+            <View style={styles.pedidoAlertBg}>
+              <TouchableOpacity onPress={handleDenunciar} activeOpacity={0.7}>
+                <Text style={{ fontSize: 16 }}>⛔</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.textoCompleto}>{pedido.texto}</Text>
+          <Text style={styles.pedidoBody}>{pedido.texto}</Text>
+          <View style={styles.pedidoDivider} />
+          <View style={styles.pedidoFooter}>
+            <View style={styles.pedidoFooterItem}>
+              <View style={styles.pedidoIconSec}>
+                <Text style={{ fontSize: 14 }}>🏷️</Text>
+              </View>
+              <View style={styles.pedidoFooterCol}>
+                <Text style={styles.pedidoLabel}>Tipo</Text>
+                <Text style={styles.pedidoValue}>{getCategoriaLabel(pedido.categoria)}</Text>
+              </View>
+            </View>
+            <View style={styles.pedidoFooterItem}>
+              <View style={styles.pedidoIconSec}>
+                <Text style={{ fontSize: 14 }}>📅</Text>
+              </View>
+              <View style={styles.pedidoFooterCol}>
+                <Text style={styles.pedidoLabel}>Enviado em</Text>
+                <Text style={styles.pedidoValue}>{getTempoRelativo(pedido.createdAt)}</Text>
+              </View>
+            </View>
+          </View>
         </View>
-
         {/* ============================================ */}
         {/* Botão Interceder + Contador (lado a lado) */}
         {/* ============================================ */}
@@ -1003,7 +1026,24 @@ const styles = StyleSheet.create({
   },
 
   // Texto do Pedido (largura total)
-  textoSection: {
+    // Pedido Card Premium
+  pedidoContainer: { backgroundColor: "#FFFFFF", borderRadius: 8, padding: 24, marginBottom: 4, borderWidth: 1, borderColor: "#E2E8F0", ...Platform.select({ ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 }, android: { elevation: 3 } }) },
+  pedidoHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
+  pedidoHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  pedidoIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#EEF4FF", justifyContent: "center", alignItems: "center" },
+  pedidoTitleCol: { flexDirection: "column", justifyContent: "center" },
+  pedidoTitle: { fontSize: 18, fontWeight: "700", color: "#1E293B" },
+  pedidoUnderline: { width: 24, height: 3, backgroundColor: COLORS.primary, borderRadius: 2, marginTop: 4 },
+  pedidoAlertBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#FEF2F2", justifyContent: "center", alignItems: "center" },
+  pedidoBody: { fontSize: 16, fontWeight: "400", color: "#334155", lineHeight: 28 },
+  pedidoDivider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 24 },
+  pedidoFooter: { flexDirection: "row", justifyContent: "flex-start", gap: 32, alignItems: "center" },
+  pedidoFooterItem: { flexDirection: "row", alignItems: "center", gap: 10 },
+  pedidoIconSec: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#F8FAFC", justifyContent: "center", alignItems: "center" },
+  pedidoFooterCol: { flexDirection: "column" },
+  pedidoLabel: { fontSize: 12, fontWeight: "500", color: "#64748B", marginBottom: 2 },
+  pedidoValue: { fontSize: 14, fontWeight: "600", color: "#1E293B" },
+textoSection: {
     backgroundColor: COLORS.white,
     marginHorizontal: 0,
     borderRadius: 0,
