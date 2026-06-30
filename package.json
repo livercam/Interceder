@@ -22,6 +22,7 @@
     "expo-font": "~56.0.5",
     "expo-image-manipulator": "~56.0.19",
     "expo-image-picker": "~56.0.18",
+    "expo-linear-gradient": "~56.0.4",
     "expo-modules-core": "~56.0.17",
     "expo-navigation-bar": "~56.0.3",
     "expo-notifications": "~56.0.15",

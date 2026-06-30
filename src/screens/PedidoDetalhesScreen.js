@@ -1,5 +1,5 @@
 // Tela de Detalhes do Pedido de Oração
-// Funcionalidades:
+
 // - Cabeçalho com avatar, nome, data e tag de categoria
 // - Texto completo do pedido
 // - Botão grande "🙏 Interceder" com animação Lottie
@@ -486,56 +486,71 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
         {/* Botão Interceder + Contador (lado a lado) */}
         {/* ============================================ */}
         {pedido.status === 'respondido' ? (
-          <View style={styles.intercessaoSection}>
-            <View style={styles.respondidoBanner}>
-              <Text style={styles.respondidoBannerIcon}>🎉</Text>
-              <Text style={styles.respondidoBannerText}>
-                Oração Respondida!
-              </Text>
+          <View style={styles.cardContainer}>
+            <View style={styles.bannerTop}>
+              <View style={styles.bannerLeftContent}>
+                <View style={styles.iconCircle}>
+                  <Text style={{ fontSize: 24 }}>🎉</Text>
+                </View>
+                <View style={styles.bannerTextContainer}>
+                  <Text style={styles.bannerTitle}>Oração Respondida!</Text>
+                  <Text style={styles.bannerSubtitle}>Este pedido já foi respondido</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.intercessoresInfo}>
-              <Text style={styles.intercessoresIcon}>💬</Text>
-              <Text style={styles.intercessoresCount}>
-                {mensagens.length}
-              </Text>
-              <Text style={styles.intercessoresDivider}>|</Text>
-              <Text style={styles.intercessoresIcon}>🔥</Text>
-              <Text style={styles.intercessoresCount}>
-                {pedido.intercessores_count || 0}
-              </Text>
+            <View style={styles.statsBottom}>
+              <View style={styles.statItem}>
+                <Text style={{ fontSize: 20 }}>💬</Text>
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statNumber}>{mensagens.length}</Text>
+                  <Text style={styles.statLabel}>Mensagens</Text>
+                </View>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.statItem}>
+                <Text style={{ fontSize: 20 }}>🔥</Text>
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statNumber}>{pedido.intercessores_count || 0}</Text>
+                  <Text style={styles.statLabel}>Intercessões</Text>
+                </View>
+              </View>
             </View>
           </View>
         ) : (
-          <View style={styles.intercessaoSection}>
-            <TouchableOpacity
-              style={styles.intercederBtn}
-              onPress={() => {
-                if (!user) {
-                  Alert.alert('Atenção', 'Faça login para interceder.');
-                  return;
-                }
-                setShowTempoModal(true);
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.intercederBtnIcon}>🙏</Text>
-              <Text style={styles.intercederBtnText}>Interceder</Text>
-            </TouchableOpacity>
-
-            <View style={styles.intercessoresInfo}>
-              <Text style={styles.intercessoresIcon}>💬</Text>
-              <Text style={styles.intercessoresCount}>
-                {mensagens.length}
-              </Text>
-              <Text style={styles.intercessoresDivider}>|</Text>
-              <Text style={styles.intercessoresIcon}>🔥</Text>
-              <Text style={styles.intercessoresCount}>
-                {pedido.intercessores_count || 0}
-              </Text>
+          <View style={styles.cardContainer}>
+            <View style={styles.bannerTop}>
+              <View style={styles.bannerLeftContent}>
+                <View style={styles.iconCircle}>
+                  <Text style={{ fontSize: 24 }}>🙏</Text>
+                </View>
+                <View style={styles.bannerTextContainer}>
+                  <Text style={styles.bannerTitle}>Interceder</Text>
+                  <Text style={styles.bannerSubtitle}>Dedique um momento a esta oração</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.bannerButton} onPress={() => { if (!user) { Alert.alert('Atenção','Faça login.'); return; } setShowTempoModal(true); }} activeOpacity={0.85}>
+                <Text style={styles.bannerButtonText}>Orar</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.statsBottom}>
+              <View style={styles.statItem}>
+                <Text style={{ fontSize: 20 }}>💬</Text>
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statNumber}>{mensagens.length}</Text>
+                  <Text style={styles.statLabel}>Mensagens</Text>
+                </View>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.statItem}>
+                <Text style={{ fontSize: 20 }}>🔥</Text>
+                <View style={styles.statTextContainer}>
+                  <Text style={styles.statNumber}>{pedido.intercessores_count || 0}</Text>
+                  <Text style={styles.statLabel}>Intercessões</Text>
+                </View>
+              </View>
             </View>
           </View>
         )}
-
         {/* ============================================ */}
         {/* Mensagens de Apoio */}
         {/* ============================================ */}
@@ -849,11 +864,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: SPACING.xxl,
-  },
-
-  // Loading / Error
+  scrollContent: { paddingHorizontal: 8, paddingBottom: 8 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1020,7 +1031,23 @@ const styles = StyleSheet.create({
   },
 
   // Intercessão (largura total)
-  intercessaoSection: {
+    // Card Interceder Premium
+  cardContainer: { backgroundColor: "#FFFFFF", borderRadius: 24, marginVertical: 12, borderWidth: 1, borderColor: "#E2E8F0", ...Platform.select({ ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 }, android: { elevation: 3 } }) },
+  bannerTop: { backgroundColor: COLORS.primary, padding: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+  bannerLeftContent: { flexDirection: "row", alignItems: "center", flex: 1 },
+  iconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  bannerTextContainer: { flex: 1, paddingRight: 12 },
+  bannerTitle: { fontSize: 16, fontWeight: "700", color: "#FFFFFF", marginBottom: 4 },
+  bannerSubtitle: { fontSize: 13, fontWeight: "400", color: "rgba(255,255,255,0.9)", lineHeight: 18 },
+  bannerButton: { backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, gap: 6 },
+  bannerButtonText: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
+  statsBottom: { backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", justifyContent: "space-evenly", paddingVertical: 16 },
+  statItem: { flexDirection: "row", alignItems: "center", gap: 12 },
+  statTextContainer: { flexDirection: "column" },
+  statNumber: { fontSize: 16, fontWeight: "700", color: "#1E293B" },
+  statLabel: { fontSize: 12, fontWeight: "400", color: "#94A3B8", marginTop: 2 },
+  divider: { width: 1, height: 32, backgroundColor: "#E2E8F0" },
+intercessaoSection: {
     flexDirection: 'column',
     alignItems: 'stretch',
     marginHorizontal: 0,
