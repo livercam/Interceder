@@ -416,51 +416,28 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
             >
               <View style={styles.autorNomeRow}>
                 <Text style={styles.autorNome}>{formatarNomeCurto(pedido.autor_nome)}</Text>
-                {pedido.autor_premium === true && (
-                  <Text style={styles.seloPremium}>💎</Text>
-                )}
-                {/* Regra de Ouro: título ministerial só aparece se o ministério for reconhecido */}
-                {(pedido.autor_endossos_count >= 5 || pedido.autor_verificado_lideranca === true) &&
-                 pedido.autor_cargo && pedido.autor_cargo.toLowerCase() !== 'membro' && (
-                  <View style={styles.cargoBadge}>
-                    <Text style={styles.cargoBadgeText}>
-                      {pedido.autor_cargo === 'diacono' ? 'Diácono' :
-                       pedido.autor_cargo === 'missionario' ? 'Missionário' :
-                       pedido.autor_cargo === 'evangelista' ? 'Evangelista' :
-                       pedido.autor_cargo === 'presbitero' ? 'Presbítero' :
-                       pedido.autor_cargo === 'pastor' ? 'Pastor' : pedido.autor_cargo} 🛡️
-                    </Text>
-                  </View>
-                )}
+                {pedido.autor_premium === true && <Text style={styles.seloPremium}>💎</Text>}
               </View>
               <Text style={styles.autorData}>
-                {getTempoRelativo(pedido.createdAt)}
+                {(pedido.autor_endossos_count >= 5 || pedido.autor_verificado_lideranca === true) && pedido.autor_cargo && pedido.autor_cargo.toLowerCase() !== 'membro'
+                  ? (pedido.autor_cargo === 'diacono' ? 'Diácono' :
+                     pedido.autor_cargo === 'missionario' ? 'Missionário' :
+                     pedido.autor_cargo === 'evangelista' ? 'Evangelista' :
+                     pedido.autor_cargo === 'presbitero' ? 'Presbítero' :
+                     pedido.autor_cargo === 'pastor' ? 'Pastor' : pedido.autor_cargo)
+                  : 'Membro'}
               </Text>
             </TouchableOpacity>
 
           </View>
 
           {/* Badge de Categoria + Ícones de Ação (alinhados horizontalmente) */}
-          <View style={styles.categoriaAcoesRow}>
-            <View style={styles.categoriaRow}>
-              <View
-                style={[
-                  styles.categoriaTag,
-                  { backgroundColor: categoriaColor + '20' },
-                ]}
-              >
-                <Text style={[styles.categoriaText, { color: categoriaColor }]}>
-                  {getCategoriaLabel(pedido.categoria)}
-                </Text>
+          <View style={styles.headerBadgeWrap}>
+            <TouchableOpacity onPress={() => { if (pedido.autor_id) navigation.navigate('PublicProfile', { userId: pedido.autor_id }); }} activeOpacity={0.7}>
+              <View style={[styles.categoriaTag, { backgroundColor: categoriaColor + '20' }]}>
+                <Text style={{ fontSize: 16 }}>👤</Text>
               </View>
-              {pedido.privacidade === 'celula' && (
-                <View style={styles.privacidadeTag}>
-                  <Text style={styles.privacidadeText}>🔒 Célula</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.acoesIconRow} />
+            </TouchableOpacity>
           </View>
 
         </View>
@@ -921,7 +898,8 @@ const styles = StyleSheet.create({
   },
   autorRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: SPACING.sm,
   },
   autorAvatar: {
@@ -990,6 +968,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 
+  headerBadgeWrap: { alignItems: 'flex-end', justifyContent: 'flex-start', marginLeft: 12 },
   categoriaAcoesRow: {
     flexDirection: 'row',
     alignItems: 'center',
