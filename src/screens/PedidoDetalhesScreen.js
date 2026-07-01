@@ -379,70 +379,41 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
         {/* ============================================ */}
         <View style={styles.autorSection}>
           <View style={styles.autorRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
               {pedido.autor_foto_url ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    if (pedido.autor_id) {
-                      navigation.navigate('PublicProfile', { userId: pedido.autor_id });
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
+                <TouchableOpacity onPress={() => { if (pedido.autor_id) navigation.navigate('PublicProfile', { userId: pedido.autor_id }); }} activeOpacity={0.7}>
                   <Image source={{ uri: pedido.autor_foto_url }} style={styles.autorAvatarFoto} />
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity
-                  style={styles.autorAvatar}
-                  onPress={() => {
-                    if (pedido.autor_id) {
-                      navigation.navigate('PublicProfile', { userId: pedido.autor_id });
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.autorAvatarText}>
-                    {pedido.autor_nome?.charAt(0)?.toUpperCase() || '?'}
-                  </Text>
+                <TouchableOpacity style={styles.autorAvatar} onPress={() => { if (pedido.autor_id) navigation.navigate('PublicProfile', { userId: pedido.autor_id }); }} activeOpacity={0.7}>
+                  <Text style={styles.autorAvatarText}>{pedido.autor_nome?.charAt(0)?.toUpperCase() || '?'}</Text>
                 </TouchableOpacity>
               )}
-            <TouchableOpacity
-              style={styles.autorInfo}
-              onPress={() => {
-                if (pedido.autor_id) {
-                  navigation.navigate('PublicProfile', { userId: pedido.autor_id });
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.autorNomeRow}>
-                <Text style={styles.autorNome}>{formatarNomeCurto(pedido.autor_nome)}</Text>
-                {pedido.autor_premium === true && <Text style={styles.seloPremium}>💎</Text>}
-              </View>
-              <Text style={styles.autorData}>
-                {(pedido.autor_endossos_count >= 5 || pedido.autor_verificado_lideranca === true) && pedido.autor_cargo && pedido.autor_cargo.toLowerCase() !== 'membro'
-                  ? (pedido.autor_cargo === 'diacono' ? 'Diácono' :
-                     pedido.autor_cargo === 'missionario' ? 'Missionário' :
-                     pedido.autor_cargo === 'evangelista' ? 'Evangelista' :
-                     pedido.autor_cargo === 'presbitero' ? 'Presbítero' :
-                     pedido.autor_cargo === 'pastor' ? 'Pastor' : pedido.autor_cargo)
-                  : 'Membro'}
-              </Text>
-            </TouchableOpacity>
-
+              <TouchableOpacity style={styles.autorInfo} onPress={() => { if (pedido.autor_id) navigation.navigate('PublicProfile', { userId: pedido.autor_id }); }} activeOpacity={0.7}>
+                <View style={styles.autorNomeRow}>
+                  <Text style={styles.autorNome}>{formatarNomeCurto(pedido.autor_nome)}</Text>
+                  {pedido.autor_premium === true && <Text style={styles.seloPremium}>💎</Text>}
+                </View>
+                <Text style={styles.autorData}>
+                  {(pedido.autor_endossos_count >= 5 || pedido.autor_verificado_lideranca === true) && pedido.autor_cargo && pedido.autor_cargo.toLowerCase() !== 'membro'
+                    ? (pedido.autor_cargo === 'diacono' ? 'Diácono' :
+                       pedido.autor_cargo === 'missionario' ? 'Missionário' :
+                       pedido.autor_cargo === 'evangelista' ? 'Evangelista' :
+                       pedido.autor_cargo === 'presbitero' ? 'Presbítero' :
+                       pedido.autor_cargo === 'pastor' ? 'Pastor' : pedido.autor_cargo)
+                    : 'Membro'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.headerBadgeWrap}>
+              <TouchableOpacity onPress={() => { if (pedido.autor_id) navigation.navigate('PublicProfile', { userId: pedido.autor_id }); }} activeOpacity={0.7}>
+                <View style={[styles.categoriaTag, { backgroundColor: categoriaColor + '20' }]}>
+                  <Text style={{ fontSize: 16 }}>👤</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          {/* Badge de Categoria + Ícones de Ação (alinhados horizontalmente) */}
-          <View style={styles.headerBadgeWrap}>
-            <TouchableOpacity onPress={() => { if (pedido.autor_id) navigation.navigate('PublicProfile', { userId: pedido.autor_id }); }} activeOpacity={0.7}>
-              <View style={[styles.categoriaTag, { backgroundColor: categoriaColor + '20' }]}>
-                <Text style={{ fontSize: 16 }}>👤</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-        </View>
-
-        <View style={styles.pedidoContainer}>
+        </View><View style={styles.pedidoContainer}>
           <View style={styles.pedidoHeader}>
             <View style={styles.pedidoHeaderLeft}>
               <View style={styles.pedidoIconBg}>
@@ -872,7 +843,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   errorText: {
-    fontSize: FONTS.sizes.lg,
+    fontSize: 32,
     color: COLORS.gray500,
     marginBottom: SPACING.md,
   },
@@ -903,18 +874,18 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   autorAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
   },
   autorAvatarFoto: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     marginRight: SPACING.md,
   },
   autorAvatarText: {
