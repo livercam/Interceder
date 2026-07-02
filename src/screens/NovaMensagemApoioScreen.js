@@ -22,17 +22,19 @@ import {
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { adicionarMensagemApoio } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
+import GravadorAudio from '../components/GravadorAudio';
 
 export default function NovaMensagemApoioScreen({ route, navigation }) {
   const { pedidoId, pedidoAutor } = route.params;
   const { user } = useAuth();
 
   const [texto, setTexto] = useState('');
+  const [audioUrl, setAudioUrl] = useState(null);
   const [enviando, setEnviando] = useState(false);
 
   const handleEnviar = async () => {
-    if (!texto.trim()) {
-      Alert.alert('Atenção', 'Escreva uma mensagem de apoio.');
+    if (!texto.trim() && !audioUrl) {
+      Alert.alert('Atenção', 'Escreva uma mensagem ou grave um áudio.');
       return;
     }
 
@@ -41,12 +43,14 @@ export default function NovaMensagemApoioScreen({ route, navigation }) {
       return;
     }
 
+    console.log('[NovaMensagem] Enviando com audioUrl:', audioUrl);
     setEnviando(true);
     try {
       const mensagemData = {
         autor_id: user.uid,
         autor_nome: user.displayName || 'Anônimo',
         texto: texto.trim(),
+        audio_url: audioUrl || null,
         replyTo_id: null,
         replyTo_autor: null,
         mentions: [],
@@ -112,14 +116,22 @@ export default function NovaMensagemApoioScreen({ route, navigation }) {
           <Text style={styles.charCount}>{texto.length}/500</Text>
         </View>
 
+        {/* Gravador de Áudio */}
+        <View style={styles.audioSection}>
+          <GravadorAudio
+            onAudioReady={(data) => { console.log('[Audio] GravadorAudio pronto:', data.uri); setAudioUrl(data.uri); }}
+            onRemove={() => { setAudioUrl(null); }}
+          />
+        </View>
+
         {/* Botão Enviar */}
         <TouchableOpacity
           style={[
             styles.enviarBtn,
-            (!texto.trim() || enviando) && styles.enviarBtnDisabled,
+            ((!texto.trim() && !audioUrl) || enviando) && styles.enviarBtnDisabled,
           ]}
           onPress={handleEnviar}
-          disabled={!texto.trim() || enviando}
+          disabled={(!texto.trim() && !audioUrl) || enviando}
           activeOpacity={0.85}
         >
           {enviando ? (
@@ -127,7 +139,7 @@ export default function NovaMensagemApoioScreen({ route, navigation }) {
           ) : (
             <>
               <Text style={styles.enviarBtnIcon}>✉️</Text>
-              <Text style={styles.enviarBtnText}>Enviar para o Feed</Text>
+              <Text style={styles.enviarBtnText}>Enviar</Text>
             </>
           )}
         </TouchableOpacity>
@@ -198,6 +210,11 @@ const styles = StyleSheet.create({
     color: COLORS.gray400,
     textAlign: 'right',
     marginTop: SPACING.sm,
+  },
+
+  // Gravador de Áudio
+  audioSection: {
+    marginBottom: SPACING.md,
   },
 
   // Botão Enviar

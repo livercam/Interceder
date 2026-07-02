@@ -24,6 +24,19 @@ service firebase.storage {
                     && fileName.matches(request.auth.uid + '\\.jpg');
     }
 
+    // 📁 Pasta de áudios: audio/{userId}/{nome}
+    // Cada usuário pode escrever apenas na sua própria pasta
+    match /audio/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 📁 Pasta de feed: feed/{celulaId}/{nome}
+    match /feed/{celulaId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // 📁 Demais arquivos
     // Liberado para leitura pública, escrita apenas para admin
     match /{allPaths=**} {

@@ -39,6 +39,7 @@ import {
 } from "../services/firestoreService";
 import { useAuth } from "../contexts/AuthContext";
 import { formatarNomeCurto } from "../utils/formatters";
+import FeedAudio from "../components/FeedAudio";
 import DenunciaModal from "../components/DenunciaModal";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -601,7 +602,13 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
                       )}
 
                       {/* Texto da mensagem com @menções destacadas */}
-                      {renderTextoComMencoes(msg.texto, styles.mensagemTexto)}
+                      {msg.texto ? renderTextoComMencoes(msg.texto, styles.mensagemTexto) : null}
+
+                      {msg.audio_url ? (
+                        <View style={{ marginTop: 8 }}>
+                          <FeedAudio audioUrl={msg.audio_url} titulo="🎤 Áudio" />
+                        </View>
+                      ) : null}
                     </View>
                   </View>
                 );

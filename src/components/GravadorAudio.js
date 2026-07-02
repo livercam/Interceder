@@ -52,8 +52,11 @@ export default function GravadorAudio({ onAudioReady, onRemove }) {
       const token = await user.getIdToken();
       const nome = `audio_${Date.now()}.m4a`;
       const urlUp = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=audio%2F${user.uid}%2F${nome}`;
-      await uploadAsync(urlUp, uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'audio/mp4' } });
+      console.log('[AudioUpload] Iniciando upload para:', urlUp);
+      const response = await uploadAsync(urlUp, uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'audio/mp4' } });
+      console.log('[AudioUpload] Resposta:', response.status, response.status === 200 ? 'OK' : 'FALHA');
       const urlF = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/audio%2F${user.uid}%2F${nome}?alt=media`;
+      console.log('[AudioUpload] URL final:', urlF);
       setAudioUrl(urlF);
       setEstado('pronto');
       onAudioReady({ uri: urlF, titulo: '🎤 Áudio', duracao: fmt(tempo) });
