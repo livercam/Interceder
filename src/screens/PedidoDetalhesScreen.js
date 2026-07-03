@@ -25,6 +25,7 @@ import {
   Platform,
   FlatList,
   Image,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -137,6 +138,7 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
   const [mensagens, setMensagens] = useState([]);
   const [textoMensagem, setTextoMensagem] = useState("");
   const [mensagensExpandidas, setMensagensExpandidas] = useState({});
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
 
   // Réplicas (Reply)
@@ -249,6 +251,22 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
   );
 
   // ============================================================
+  // Keyboard Listener (Android)
+  // ============================================================
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // ============================================================
   // Iniciar Réplica (Reply)
   // ============================================================
   const handleReply = useCallback((msg) => {
@@ -277,6 +295,8 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
     }
 
     setEnviandoMensagem(true);
+    Keyboard.dismiss();
+    setKeyboardHeight(0);
     try {
       const mensagemData = {
         autor_id: user.uid,
@@ -370,7 +390,7 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "padding"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 70}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : insets.top + 10}
     >
       <ScrollView
         style={styles.scrollView}
@@ -665,7 +685,7 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       ) : user ? (
-        <View style={styles.bottomInputBar}>
+        <View style={[styles.bottomInputBar, { paddingBottom: Platform.OS === "android" ? (keyboardHeight > 0 ? 60 : insets.bottom) : 24 }]}>
           {replyingTo && (
             <View style={styles.replyBar}>
               <Text style={styles.replyBarText} numberOfLines={1}>
@@ -700,7 +720,7 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TextInput
               ref={inputRef}
-              style={styles.inputField}
+              style={[styles.inputField, textoMensagem.length > 0 && styles.inputFieldActive]}
               placeholder={replyingTo ? `Responder a ${formatarNomeCurto(replyingTo.autor)}...` : "Escreva uma mensagem de apoio... (use @ para mencionar)"}
               placeholderTextColor={"#94A3B8"}
               value={textoMensagem}
@@ -841,7 +861,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: { paddingHorizontal: 8, paddingBottom: 120 },
+  scrollContent: { paddingHorizontal: 8, paddingBottom: SPACING.xxl },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1162,9 +1182,9 @@ intercessaoSection: {
   // CARD DE MENSAGEM INDIVIDUAL
   // ==========================================
   feedContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 100, // Espaço para a barra de input fixa não cobrir a última mensagem
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 2, // Espaço para a barra de input fixa não cobrir a última mensagem
   },
   messageCard: {
     backgroundColor: '#FFFFFF',
@@ -1262,10 +1282,6 @@ intercessaoSection: {
     ...SHADOWS.md,
   },
   bottomInputBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: '#FFFFFF',
     flexDirection: 'column',
     paddingHorizontal: 16,
@@ -1286,10 +1302,14 @@ intercessaoSection: {
     minHeight: 48,
     paddingHorizontal: 20,
     fontFamily: 'Inter',
-    fontSize: 14,
+    fontSize: 16,
     color: '#1E293B',
     marginRight: 12,
   },
+  inputFieldActive: {
+    minHeight: 80,
+  },
+
   sendButton: {
     width: 48,
     height: 48,
