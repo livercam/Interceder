@@ -634,9 +634,7 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
 
                     {/* Player de Áudio Embutido */}
                     {msg.audio_url ? (
-                      <View style={{ marginTop: 12 }}>
-                        <FeedAudio audioUrl={msg.audio_url} />
-                      </View>
+                      <FeedAudio audioUrl={msg.audio_url} />
                     ) : null}
                   </View>
                 );
@@ -1164,9 +1162,9 @@ intercessaoSection: {
   // CARD DE MENSAGEM INDIVIDUAL
   // ==========================================
   feedContainer: {
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 100, // Espaço para a barra de input fixa não cobrir a última mensagem
   },
   messageCard: {
     backgroundColor: '#FFFFFF',
@@ -1272,8 +1270,10 @@ intercessaoSection: {
     flexDirection: 'column',
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+    ...SHADOWS.md,
     ...Platform.select({
       ios: { paddingBottom: 24 },
       android: { paddingBottom: 12 },

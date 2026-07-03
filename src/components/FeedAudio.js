@@ -84,6 +84,7 @@ const s = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    marginTop: 12, // Afasta do texto acima
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
