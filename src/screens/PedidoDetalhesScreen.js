@@ -1187,7 +1187,7 @@ intercessaoSection: {
     paddingBottom: 2, // Espaço para a barra de input fixa não cobrir a última mensagem
   },
   messageCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F0F4FF',
     borderRadius: 20,
     padding: 16,
     marginBottom: 16,
@@ -1209,7 +1209,9 @@ intercessaoSection: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#EEF4FF',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#A94438',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1329,7 +1331,7 @@ intercessaoSection: {
   lerMaisTexto: {
     fontFamily: 'Inter',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#3B82F6',
   },
 

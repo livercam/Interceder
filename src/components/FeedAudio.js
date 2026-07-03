@@ -92,7 +92,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#A94438',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -106,7 +106,7 @@ const s = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#A94438',
     borderRadius: 2,
   },
   audioTimerText: {
