@@ -94,13 +94,15 @@ const getTempoRelativo = (timestamp) => {
 // ============================================================
 function renderTextoComMencoes(texto, estiloBase = {}) {
   if (!texto) return null;
+  return renderTextoComMencoesInterno(texto, estiloBase);
+}
 
-  // Regex para encontrar palavras que começam com @ seguidas de letras/números/underscore
+function renderTextoComMencoesInterno(texto, estiloBase = {}) {
+  if (!texto) return null;
   const regex = /(@[a-zA-Z0-9_]+)/g;
   const partes = texto.split(regex);
-
   return (
-    <Text style={estiloBase}>
+    <>
       {partes.map((parte, index) => {
         if (parte.startsWith("@")) {
           return (
@@ -115,7 +117,7 @@ function renderTextoComMencoes(texto, estiloBase = {}) {
           </Text>
         );
       })}
-    </Text>
+    </>
   );
 }
 
@@ -134,6 +136,7 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
   // Mensagens de apoio
   const [mensagens, setMensagens] = useState([]);
   const [textoMensagem, setTextoMensagem] = useState("");
+  const [mensagensExpandidas, setMensagensExpandidas] = useState({});
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
 
   // Réplicas (Reply)
@@ -602,7 +605,32 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
                     )}
 
                     {/* Texto da mensagem com @menções destacadas */}
-                    {msg.texto ? renderTextoComMencoes(msg.texto, styles.messageText) : null}
+                    {msg.texto ? (
+                      <View>
+                        <Text
+                          style={styles.messageText}
+                          numberOfLines={mensagensExpandidas[msg.id] ? undefined : 3}
+                        >
+                          {renderTextoComMencoesInterno(msg.texto, styles.messageText)}
+                        </Text>
+                        {msg.texto.length > 120 && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setMensagensExpandidas((prev) => ({
+                                ...prev,
+                                [msg.id]: !prev[msg.id],
+                              }));
+                            }}
+                            activeOpacity={0.7}
+                            style={{ marginTop: 4 }}
+                          >
+                            <Text style={styles.lerMaisTexto}>
+                              {mensagensExpandidas[msg.id] ? "Ler menos" : "... Ler mais"}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ) : null}
 
                     {/* Player de Áudio Embutido */}
                     {msg.audio_url ? (
@@ -815,7 +843,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: { paddingHorizontal: 8, paddingBottom: 8 },
+  scrollContent: { paddingHorizontal: 8, paddingBottom: 120 },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1170,7 +1198,7 @@ intercessaoSection: {
   authorName: {
     fontFamily: 'Inter',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1E293B',
   },
   timeAgo: {
@@ -1274,7 +1302,18 @@ intercessaoSection: {
     opacity: 0.5,
   },
 
-  // Login para comentar (visitantes)
+
+  // ==========================================
+  // Texto "Ler mais" / "Ler menos"
+  // ==========================================
+  lerMaisTexto: {
+    fontFamily: 'Inter',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+
+    // Login para comentar (visitantes)
   loginParaComentar: {
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
