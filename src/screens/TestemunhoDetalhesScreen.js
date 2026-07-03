@@ -32,6 +32,7 @@ import {
   excluirMensagemApoioTestemunho,
 } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import { formatarNomeCurto } from '../utils/formatters';
 import DenunciaModal from '../components/DenunciaModal';
 
@@ -427,71 +428,73 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
         {/* Mensagens de Apoio */}
         <View style={styles.mensagensSection}>
-          <Text style={styles.mensagensTitle}>💬 Parabéns e Mensagens</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="chatbubble-ellipses" size={20} color="#1E293B" />
+            <Text style={styles.sectionTitle}>Parabéns e Mensagens</Text>
+          </View>
 
-          {mensagens.length === 0 ? (
-            <View style={styles.semMensagens}>
-              <Text style={styles.semMensagensEmoji}>💭</Text>
-              <Text style={styles.semMensagensText}>Nenhuma mensagem ainda.</Text>
-              <Text style={styles.semMensagensHint}>Seja o primeiro a dar os parabéns!</Text>
+                    {mensagens.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateEmoji}>💭</Text>
+              <Text style={styles.emptyStateText}>Nenhuma mensagem ainda.</Text>
+              <Text style={styles.emptyStateHint}>Seja o primeiro a dar os parabéns!</Text>
             </View>
           ) : (
-            <View style={styles.mensagemTimeline}>
-              {mensagens.length > 1 && <View style={styles.mensagemLine} />}
+            <View style={styles.feedContainer}>
               {mensagens.map((msg) => {
                 const ehAutor = testemunho && msg.autor_id === testemunho.autor_id;
                 return (
-                  <View key={msg.id} style={styles.mensagemCardWrapper}>
-                    <View style={styles.mensagemDot} />
-                    <View style={[styles.mensagemCard, ehAutor && styles.mensagemCardAutor]}>
-                      <View style={styles.mensagemHeader}>
-                        <View style={styles.mensagemAvatar}>
-                          <Text style={styles.mensagemAvatarText}>
+                  <View key={msg.id} style={styles.messageCard}>
+                    <View style={styles.messageHeader}>
+                      <View style={styles.authorInfoRow}>
+                        <View style={[styles.avatarContainer, ehAutor && { backgroundColor: '#A94438' }]}>
+                          <Text style={[{ fontSize: 16, fontWeight: '600', color: '#1E293B' }, ehAutor && { color: '#FFF' }]}>
                             {msg.autor_nome?.charAt(0)?.toUpperCase() || '?'}
                           </Text>
                         </View>
-                        <View style={styles.mensagemInfo}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={styles.mensagemAutor}>{formatarNomeCurto(msg.autor_nome)}</Text>
+                        <View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.authorName}>{formatarNomeCurto(msg.autor_nome)}</Text>
                             {ehAutor && (
-                              <View style={styles.mensagemAutorBadge}>
-                                <Text style={styles.mensagemAutorBadgeText}>👑 Autor</Text>
+                              <View style={styles.autorBadge}>
+                                <Ionicons name="crown" size={12} color="#A94438" />
                               </View>
                             )}
                           </View>
-                          <Text style={styles.mensagemData}>{getTempoRelativo(msg.criadoEm)}</Text>
+                          <Text style={styles.timeAgo}>{getTempoRelativo(msg.criadoEm)}</Text>
                         </View>
+                      </View>
+                      <View style={styles.actionIconsRow}>
                         <TouchableOpacity
-                          style={styles.replyBtn}
                           onPress={() => handleReply(msg)}
-                          activeOpacity={0.7}
+                          activeOpacity={0.6}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <Text style={styles.replyBtnText}>↩ Responder</Text>
+                          <Ionicons name="chatbubble-outline" size={18} color="#94A3B8" />
                         </TouchableOpacity>
                         {user && testemunho && (msg.autor_id === user.uid || testemunho.autor_id === user.uid) && (
                           <TouchableOpacity
-                            style={styles.excluirMsgBtn}
                             onPress={() => handleExcluirMensagem(msg)}
-                            activeOpacity={0.7}
+                            activeOpacity={0.6}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Text style={styles.excluirMsgBtnText}>🗑️</Text>
+                            <Ionicons name="trash-outline" size={18} color="#94A3B8" />
                           </TouchableOpacity>
                         )}
                       </View>
-                      {msg.replyTo_autor && (
-                        <View style={styles.replyIndicator}>
-                          <Text style={styles.replyIndicatorText}>↩ Respondendo a {formatarNomeCurto(msg.replyTo_autor)}</Text>
-                        </View>
-                      )}
-                      <Text style={styles.mensagemTexto}>{msg.texto}</Text>
                     </View>
+                    {msg.replyTo_autor && (
+                      <View style={[styles.replyIndicator, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Ionicons name="return-up-back" size={12} color="#A94438" />
+                        <Text style={styles.replyIndicatorText}>Respondendo a {formatarNomeCurto(msg.replyTo_autor)}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.messageText}>{msg.texto}</Text>
                   </View>
                 );
               })}
             </View>
-          )}
-        </View>
+          )}        </View>
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
@@ -515,12 +518,12 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           )}
-          <View style={styles.inputRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TextInput
               ref={inputRef}
-              style={styles.mensagemInput}
+              style={styles.inputField}
               placeholder={replyingTo ? `Responder a ${formatarNomeCurto(replyingTo.autor)}...` : 'Escreva uma mensagem de parabéns...'}
-              placeholderTextColor={COLORS.gray400}
+              placeholderTextColor="#94A3B8"
               value={textoMensagem}
               onChangeText={setTextoMensagem}
               multiline
@@ -528,15 +531,15 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
               editable={!enviandoMensagem}
             />
             <TouchableOpacity
-              style={[styles.enviarBtn, (!textoMensagem.trim() || enviandoMensagem) && styles.enviarBtnDisabled]}
+              style={[styles.sendButton, (!textoMensagem.trim() || enviandoMensagem) && styles.enviarBtnDisabled]}
               onPress={handleEnviarMensagem}
               disabled={!textoMensagem.trim() || enviandoMensagem}
               activeOpacity={0.8}
             >
               {enviandoMensagem ? (
-                <ActivityIndicator color={COLORS.white} size="small" />
+                <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.enviarBtnText}>Enviar</Text>
+                <Ionicons name="send" size={18} color="#FFFFFF" />
               )}
             </TouchableOpacity>
           </View>
@@ -641,65 +644,97 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   mensagensSection: { backgroundColor: COLORS.white, marginHorizontal: 0, borderRadius: 0, padding: SPACING.lg, ...SHADOWS.md, marginBottom: SPACING.md },
-  mensagensTitle: { fontSize: FONTS.sizes.md, fontWeight: 'bold', color: COLORS.gray800, marginBottom: SPACING.md },
-  semMensagens: { alignItems: 'center', paddingVertical: SPACING.lg },
-  semMensagensEmoji: { fontSize: 40, marginBottom: SPACING.sm },
-  semMensagensText: { fontSize: FONTS.sizes.md, color: COLORS.gray500, marginBottom: SPACING.xs },
-  semMensagensHint: { fontSize: FONTS.sizes.sm, color: COLORS.gray400 },
-  mensagemTimeline: {
-    position: 'relative',
-    paddingLeft: SPACING.md,
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 24,
   },
-  mensagemLine: {
-    position: 'absolute',
-    left: 16,
-    top: 32,
-    bottom: 0,
-    width: 2,
-    backgroundColor: COLORS.gray200,
+  sectionTitle: {
+    fontFamily: 'Inter',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  mensagemCardWrapper: {
-    position: 'relative',
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+  },
+  emptyStateEmoji: {
+    fontSize: 40,
     marginBottom: SPACING.sm,
   },
-  mensagemCard: { backgroundColor: COLORS.background, borderRadius: RADIUS.md, padding: SPACING.md, borderWidth: 1, borderColor: COLORS.gray200, marginLeft: SPACING.md, position: 'relative' },
-  mensagemCardAutor: { backgroundColor: COLORS.primary + '08', borderColor: COLORS.primary + '25' },
-  mensagemDot: {
-    position: 'absolute',
-    left: -SPACING.md - 12,
-    top: 18,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.primary,
+  emptyStateText: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.gray500,
+    textAlign: 'center',
+  },
+  emptyStateHint: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.gray400,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+  },
+  feedContainer: {
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 2,
+  },
+  messageCard: {
+    backgroundColor: '#F0F4FF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  messageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  authorInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: COLORS.white,
+    borderColor: '#A94438',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  mensagemHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm },
-  mensagemAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.sm },
-  mensagemAvatarText: { color: COLORS.white, fontSize: FONTS.sizes.sm, fontWeight: 'bold' },
-  mensagemAutorBadge: {
-    backgroundColor: COLORS.primary + '20',
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    marginLeft: SPACING.xs,
+  authorName: {
+    fontFamily: 'Inter',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  mensagemAutorBadgeText: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.primary,
-    fontWeight: '600',
+  timeAgo: {
+    fontFamily: 'Inter',
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#94A3B8',
+    marginTop: 2,
   },
-  mensagemInfo: { flex: 1 },
-  mensagemAutor: { fontSize: FONTS.sizes.sm, fontFamily: 'Nunito_700Bold', color: COLORS.gray800 },
-  mensagemData: { fontSize: FONTS.sizes.xs, color: COLORS.gray400 },
-  replyBtn: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
-  replyBtnText: { fontSize: FONTS.sizes.xs, color: COLORS.primary, fontWeight: '600' },
-  excluirMsgBtn: { padding: SPACING.xs },
-  excluirMsgBtnText: { fontSize: 16 },
+  actionIconsRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  messageText: {
+    fontFamily: 'Inter',
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#475569',
+    lineHeight: 24,
+  },
   replyIndicator: { backgroundColor: COLORS.primary + '10', borderRadius: RADIUS.sm, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, marginBottom: SPACING.sm, alignSelf: 'flex-start' },
-  replyIndicatorText: { fontSize: FONTS.sizes.xs, color: COLORS.primary, fontStyle: 'italic' },
-  mensagemTexto: { fontSize: FONTS.sizes.sm, color: COLORS.gray700, lineHeight: 20 },
+  replyIndicatorText: { fontSize: 12, color: COLORS.primary, fontStyle: 'italic' },
   inputArea: { marginTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.gray200, paddingTop: SPACING.md },
 
   // Card Elevado de Input — respeita safe area do Android
@@ -717,11 +752,26 @@ const styles = StyleSheet.create({
   replyBarNome: { fontWeight: 'bold', color: COLORS.primary },
   replyBarClose: { padding: SPACING.xs },
   replyBarCloseText: { fontSize: 14, color: COLORS.gray500, fontWeight: 'bold' },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  mensagemInput: { flex: 1, backgroundColor: COLORS.background, borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, fontSize: FONTS.sizes.sm, maxHeight: 100, borderWidth: 1, borderColor: COLORS.gray300, marginRight: SPACING.sm },
-  enviarBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, justifyContent: 'center', alignItems: 'center' },
+  inputField: {
+    flex: 1,
+    backgroundColor: '#F6F8FC',
+    borderRadius: 24,
+    minHeight: 48,
+    paddingHorizontal: 20,
+    fontFamily: 'Inter',
+    fontSize: 16,
+    color: '#1E293B',
+    marginRight: 12,
+  },
+  sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   enviarBtnDisabled: { opacity: 0.5 },
-  enviarBtnText: { color: COLORS.white, fontSize: FONTS.sizes.sm, fontWeight: '600' },
   loginParaComentar: {
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
@@ -735,4 +785,13 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray200,
   },
   loginParaComentarText: { fontSize: FONTS.sizes.sm, color: COLORS.gray500 },
+
+  autorBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
