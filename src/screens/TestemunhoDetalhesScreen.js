@@ -258,31 +258,45 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
           <Text style={styles.pedidoBody}>{testemunho.texto}</Text>
         </View>
 
-        {/* Banner de Intercessao */}
-        <View style={styles.bannerCard}>
-          <View style={styles.bannerContent}>
-            <Ionicons name="hand-left" size={32} color="#FFFFFF" style={{ alignSelf: 'center', marginBottom: 8 }} />
-            <Text style={styles.bannerTitle}>Interceder</Text>
-            <Text style={styles.bannerSubTitle}>Ore por este pedido...</Text>
-            <Text style={styles.bannerAction}>[ Interceder ]</Text>
-          </View>
-        </View>
-
-        {/* Cartao de Estatisticas */}
-        <View style={styles.statsCard}>
-          <View style={styles.statSection}>
-            <Ionicons name="chatbubble-ellipses" size={24} color="#94A3B8" style={{ marginRight: 10 }} />
-            <View>
-              <Text style={styles.statNumber}>{mensagens.length}</Text>
-              <Text style={styles.statLabel}>Mensagens</Text>
+        {/* Card Unificado: Banner Verde + Estatisticas */}
+        <View style={styles.unifiedActionCard}>
+          {/* Parte Superior: Banner Verde */}
+          <View style={styles.actionBanner}>
+            <View style={styles.actionBannerLeft}>
+              <View style={styles.actionIconCircle}>
+                <Ionicons name="heart" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Agradecimento</Text>
+                <Text style={styles.actionSubtitle}>Fique feliz com seu irmao e celebrem juntos!</Text>
+              </View>
             </View>
+            <TouchableOpacity style={styles.actionButton} onPress={handleCelebrar} activeOpacity={0.85}>
+              <Text style={styles.actionButtonText}>Gloria a Deus</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statSection}>
-            <Ionicons name="flame" size={24} color="#94A3B8" style={{ marginRight: 10 }} />
-            <View>
-              <Text style={styles.statNumber}>{testemunho.glorias || 0}</Text>
-              <Text style={styles.statLabel}>Intercessoes</Text>
+
+          {/* Particulas flutuando para cima */}
+          {particulas.map((p) => (
+            <ParticulaGloria key={p.id} id={p.id} xOffset={p.xOffset} onRemover={removerParticula} />
+          ))}
+
+          {/* Parte Inferior: Estatisticas */}
+          <View style={styles.actionStats}>
+            <View style={styles.statItem}>
+              <Ionicons name="chatbubble-ellipses" size={22} color="#94A3B8" />
+              <View style={styles.statTextContainer}>
+                <Text style={styles.statNumber}>{mensagens.length}</Text>
+                <Text style={styles.statLabel}>Mensagens</Text>
+              </View>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Ionicons name="flame" size={22} color="#94A3B8" />
+              <View style={styles.statTextContainer}>
+                <Text style={styles.statNumber}>{testemunho.glorias || 0}</Text>
+                <Text style={styles.statLabel}>Intercessoes</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -452,25 +466,37 @@ const styles = StyleSheet.create({
   pedidoHeader: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#1E293B' },
   pedidoBody: { fontFamily: 'Inter', fontSize: 16, fontWeight: '400', color: '#1E293B', lineHeight: 24 },
 
-  // --- Banner de Intercessao ---
-  bannerCard: {
-    borderRadius: 20, padding: 16, marginBottom: 16, backgroundColor: '#2575FC',
+  // --- Card Unificado (Banner Verde + Estatisticas) ---
+  unifiedActionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    marginVertical: 16,
+    overflow: 'hidden',
     ...Platform.select({
-      ios: { shadowColor: '#2575FC', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-      android: { elevation: 4 },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8 },
+      android: { elevation: 3 },
     }),
   },
-  bannerContent: { alignItems: 'center', paddingVertical: 8 },
-  bannerTitle: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
-  bannerSubTitle: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#FFFFFF', textAlign: 'center', marginTop: 4, opacity: 0.85 },
-  bannerAction: { fontFamily: 'Inter', fontSize: 12, fontWeight: '600', color: '#FFFFFF', textAlign: 'center', marginTop: 8, opacity: 0.9 },
-
-  // --- Cartao de Estatisticas ---
-  statsCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, flexDirection: 'row', marginBottom: 16, ...CARD_SHADOW },
-  statSection: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
-  statDivider: { width: 1, backgroundColor: '#E1E8EE', marginHorizontal: 8 },
-  statNumber: { fontFamily: 'Inter', fontSize: 20, fontWeight: '600', color: '#1E293B' },
-  statLabel: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#1E293B', opacity: 0.7 },
+  actionBanner: {
+    backgroundColor: '#2E9F5C',
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  actionBannerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  actionIconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  actionTextContainer: { flex: 1, paddingRight: 12 },
+  actionTitle: { fontFamily: 'Inter', fontSize: 18, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
+  actionSubtitle: { fontFamily: 'Inter', fontSize: 13, fontWeight: '400', color: 'rgba(255, 255, 255, 0.95)', lineHeight: 18 },
+  actionButton: { backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 16, gap: 6 },
+  actionButtonText: { fontFamily: 'Inter', fontSize: 14, fontWeight: '700', color: '#166534' },
+  actionStats: { backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly', paddingVertical: 16 },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statTextContainer: { flexDirection: 'column' },
+  statNumber: { fontFamily: 'Inter', fontSize: 16, fontWeight: '700', color: '#1E293B' },
+  statLabel: { fontFamily: 'Inter', fontSize: 12, fontWeight: '400', color: '#64748B', marginTop: 2 },
+  statDivider: { width: 1, height: 32, backgroundColor: '#E2E8F0' },
 
   // --- Cartao de Mensagens de Apoio ---
   comentarioCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
