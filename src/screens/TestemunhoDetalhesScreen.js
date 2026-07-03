@@ -1,11 +1,13 @@
 // Tela de Detalhes do Testemunho
-// Funcionalidades:
-// - Cabeçalho com avatar, nome e data
+// Layout redesenhado no estilo "Detalhes do Pedido" com cartoes brancos, fundo creme (#F6F8FC)
+//
+// Funcionalidades mantidas:
+// - Cabecalho com avatar, nome e data
 // - Texto completo do testemunho
-// - Botão "🙌 Glória a Deus!" para celebrar
-// - Botão de denúncia (bandeira 🚩)
-// - Seção de Mensagens de Apoio (comentários)
-// - Réplicas (Reply) a mensagens específicas
+// - Botao de celebrar com particulas
+// - Denuncia
+// - Secao de Mensagens de Apoio (comentarios)
+// - Replicas (Reply) a mensagens especificas
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -36,9 +38,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { formatarNomeCurto } from '../utils/formatters';
 import DenunciaModal from '../components/DenunciaModal';
 
-// ============================================================
-// Utilitários
-// ============================================================
+// Utilitarios
 const getTempoRelativo = (timestamp) => {
   if (!timestamp) return 'agora mesmo';
   const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -47,17 +47,19 @@ const getTempoRelativo = (timestamp) => {
   const diffMin = Math.floor(diffMs / 60000);
   const diffHoras = Math.floor(diffMs / 3600000);
   const diffDias = Math.floor(diffMs / 86400000);
-
   if (diffMin < 1) return 'agora mesmo';
-  if (diffMin < 60) return `há ${diffMin} min`;
-  if (diffHoras < 24) return `há ${diffHoras}h`;
-  if (diffDias < 7) return `há ${diffDias}d`;
+  if (diffMin < 60) return `ha ${diffMin} min`;
+  if (diffHoras < 24) return `ha ${diffHoras}h`;
+  if (diffDias < 7) return `ha ${diffDias}d`;
   return data.toLocaleDateString('pt-PT');
 };
 
-// ============================================================
-// Componente de Partícula Flutuante (Chuva de Glória)
-// ============================================================
+const getDataFormatada = (timestamp) => {
+  if (!timestamp) return '';
+  const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return data.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 const EMOJIS_GLORIA = ['🙌', '🔥', '✨', '🌟', '💫', '🕊️', '❤️', '🎉'];
 
 function ParticulaGloria({ id, xOffset, onRemover }) {
@@ -67,41 +69,22 @@ function ParticulaGloria({ id, xOffset, onRemover }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(animY, {
-        toValue: -150,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(animOpacity, {
-        toValue: 0,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onRemover(id);
-    });
+      Animated.timing(animY, { toValue: -150, duration: 1000, useNativeDriver: true }),
+      Animated.timing(animOpacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
+    ]).start(() => onRemover(id));
   }, []);
 
   return (
-    <Animated.Text
-      style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 20 + xOffset,
-        fontSize: 24,
-        transform: [{ translateY: animY }],
-        opacity: animOpacity,
-        zIndex: 999,
-      }}
-    >
+    <Animated.Text style={{
+      position: 'absolute', bottom: 0, left: 20 + xOffset,
+      fontSize: 24, transform: [{ translateY: animY }],
+      opacity: animOpacity, zIndex: 999,
+    }}>
       {emoji}
     </Animated.Text>
   );
 }
 
-// ============================================================
-// Tela de Detalhes do Testemunho
-// ============================================================
 export default function TestemunhoDetalhesScreen({ route, navigation }) {
   const { testemunhoId } = route.params;
   const { user } = useAuth();
@@ -109,30 +92,21 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
   const [testemunho, setTestemunho] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Mensagens de apoio
   const [mensagens, setMensagens] = useState([]);
   const [textoMensagem, setTextoMensagem] = useState('');
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
-
-  // Réplicas (Reply)
   const [replyingTo, setReplyingTo] = useState(null);
   const inputRef = useRef(null);
-
-  // Denúncia
   const [showDenunciaModal, setShowDenunciaModal] = useState(false);
-
-  // Partículas de Glória (Chuva de Animações)
   const [particulas, setParticulas] = useState([]);
 
-  // Carregar testemunho
   useEffect(() => {
     const carregar = async () => {
       try {
         const dados = await getTestemunho(testemunhoId);
         setTestemunho(dados);
       } catch (error) {
-        Alert.alert('Erro', 'Não foi possível carregar o testemunho.');
+        Alert.alert('Erro', 'Nao foi possivel carregar o testemunho.');
         navigation.goBack();
       } finally {
         setLoading(false);
@@ -141,7 +115,6 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
     carregar();
   }, [testemunhoId]);
 
-  // Escutar mensagens de apoio em tempo real
   useEffect(() => {
     const unsubscribe = listarMensagensApoioTestemunho(testemunhoId, (mensagensAtualizadas) => {
       setMensagens(mensagensAtualizadas);
@@ -149,133 +122,72 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
     return () => unsubscribe();
   }, [testemunhoId]);
 
-  // ============================================================
-  // Celebrar (Glória a Deus!) + Chuva de Partículas
-  // ============================================================
   const handleCelebrar = useCallback(async () => {
-    if (!user) {
-      Alert.alert('Atenção', 'Faça login para celebrar.');
-      return;
-    }
-
-    // Gerar partícula visual (mesmo se o backend falhar)
+    if (!user) { Alert.alert('Atencao', 'Faca login para celebrar.'); return; }
     const novaParticula = {
       id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-      xOffset: Math.random() * 40 - 20, // deslocamento lateral aleatório entre -20 e +20
+      xOffset: Math.random() * 40 - 20,
     };
     setParticulas((prev) => [...prev, novaParticula]);
-
     try {
       await celebrarTestemunho(testemunhoId, user.uid);
       setTestemunho((prev) => prev ? { ...prev, glorias: (prev.glorias || 0) + 1 } : prev);
-    } catch (error) {
-      // Silencia o erro (ex: "Já celebraste") — a partícula visual já foi gerada
-    }
+    } catch (error) {}
   }, [user, testemunhoId]);
 
-  // ============================================================
-  // Remover partícula após animação terminar
-  // ============================================================
   const removerParticula = useCallback((id) => {
     setParticulas((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  // ============================================================
-  // Denunciar (abre modal lateral)
-  // ============================================================
   const handleDenunciar = useCallback(() => {
-    if (!user) {
-      Alert.alert('Atenção', 'Faça login para denunciar.');
-      return;
-    }
+    if (!user) { Alert.alert('Atencao', 'Faca login para denunciar.'); return; }
     setShowDenunciaModal(true);
   }, [user]);
 
-  // ============================================================
-  // Iniciar Réplica (Reply)
-  // ============================================================
   const handleReply = useCallback((msg) => {
     setReplyingTo({ id: msg.id, autor: msg.autor_nome });
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (inputRef.current) inputRef.current.focus();
   }, []);
 
-  // ============================================================
-  // Cancelar Réplica
-  // ============================================================
-  const handleCancelReply = useCallback(() => {
-    setReplyingTo(null);
-  }, []);
+  const handleCancelReply = useCallback(() => setReplyingTo(null), []);
 
-  // ============================================================
-  // Enviar Mensagem
-  // ============================================================
   const handleEnviarMensagem = async () => {
     if (!textoMensagem.trim()) return;
-    if (!user) {
-      Alert.alert('Atenção', 'Faça login para enviar mensagens.');
-      return;
-    }
-
+    if (!user) { Alert.alert('Atencao', 'Faca login para enviar mensagens.'); return; }
     setEnviandoMensagem(true);
     try {
-      const mensagemData = {
+      await adicionarMensagemApoioTestemunho(testemunhoId, {
         autor_id: user.uid,
-        autor_nome: user.displayName || 'Anônimo',
+        autor_nome: user.displayName || 'Anonimo',
         texto: textoMensagem.trim(),
         replyTo_id: replyingTo ? replyingTo.id : null,
         replyTo_autor: replyingTo ? replyingTo.autor : null,
-      };
-
-      await adicionarMensagemApoioTestemunho(testemunhoId, mensagemData);
+      });
       setTextoMensagem('');
       setReplyingTo(null);
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível enviar a mensagem.');
+      Alert.alert('Erro', 'Nao foi possivel enviar a mensagem.');
     } finally {
       setEnviandoMensagem(false);
     }
   };
 
-  // ============================================================
-  // Excluir Mensagem
-  // ============================================================
-  const handleExcluirMensagem = useCallback(
-    (msg) => {
-      const podeExcluir =
-        user &&
-        testemunho &&
-        (msg.autor_id === user.uid || testemunho.autor_id === user.uid);
-
-      if (!podeExcluir) return;
-
-      Alert.alert(
-        'Excluir Mensagem',
-        'Tem certeza que deseja excluir esta mensagem?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Excluir',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await excluirMensagemApoioTestemunho(testemunhoId, msg.id);
-              } catch (error) {
-                Alert.alert('Erro', 'Não foi possível excluir a mensagem.');
-              }
-            },
-          },
-        ]
-      );
-    },
-    [user, testemunho, testemunhoId]
-  );
+  const handleExcluirMensagem = useCallback((msg) => {
+    if (!user || !testemunho) return;
+    if (msg.autor_id !== user.uid && testemunho.autor_id !== user.uid) return;
+    Alert.alert('Excluir Mensagem', 'Tem certeza que deseja excluir esta mensagem?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Excluir', style: 'destructive', onPress: async () => {
+        try { await excluirMensagemApoioTestemunho(testemunhoId, msg.id); }
+        catch (error) { Alert.alert('Erro', 'Nao foi possivel excluir a mensagem.'); }
+      }},
+    ]);
+  }, [user, testemunho, testemunhoId]);
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }
@@ -283,7 +195,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
   if (!testemunho) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Testemunho não encontrado</Text>
+        <Text style={styles.errorText}>Testemunho nao encontrado</Text>
         <TouchableOpacity style={styles.voltarBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.voltarBtnText}>Voltar</Text>
         </TouchableOpacity>
@@ -303,141 +215,94 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Cabeçalho do Autor */}
-        <View style={styles.autorSection}>
-          <View style={styles.autorRow}>
-              {testemunho.autor_foto_url ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    if (testemunho.autor_id) {
-                      navigation.navigate('PublicProfile', { userId: testemunho.autor_id });
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Image source={{ uri: testemunho.autor_foto_url }} style={styles.autorAvatarFoto} />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.autorAvatar}
-                  onPress={() => {
-                    if (testemunho.autor_id) {
-                      navigation.navigate('PublicProfile', { userId: testemunho.autor_id });
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.autorAvatarText}>
-                    {testemunho.autor_nome?.charAt(0)?.toUpperCase() || '?'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            <TouchableOpacity
-              style={styles.autorInfo}
-              onPress={() => {
-                if (testemunho.autor_id) {
-                  navigation.navigate('PublicProfile', { userId: testemunho.autor_id });
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.autorNomeRow}>
-                <Text style={styles.autorNome}>{formatarNomeCurto(testemunho.autor_nome)}</Text>
-                {testemunho.autor_premium === true && (
-                  <Text style={styles.seloPremium}>💎</Text>
-                )}
-                {/* Regra de Ouro: título ministerial só aparece se o ministério for reconhecido */}
-                {(testemunho.autor_endossos_count >= 5 || testemunho.autor_verificado_lideranca === true) &&
-                 testemunho.autor_cargo && testemunho.autor_cargo.toLowerCase() !== 'membro' && (
-                  <View style={styles.cargoBadge}>
-                    <Text style={styles.cargoBadgeText}>
-                      {testemunho.autor_cargo === 'diacono' ? 'Diácono' :
-                       testemunho.autor_cargo === 'missionario' ? 'Missionário' :
-                       testemunho.autor_cargo === 'evangelista' ? 'Evangelista' :
-                       testemunho.autor_cargo === 'presbitero' ? 'Presbítero' :
-                       testemunho.autor_cargo === 'pastor' ? 'Pastor' : testemunho.autor_cargo} 🛡️
-                    </Text>
-                  </View>
-                )}
+        {/* Cartao do Autor */}
+        <View style={styles.autorCard}>
+          <View style={styles.autorHeader}>
+            {testemunho.autor_foto_url ? (
+              <TouchableOpacity onPress={() => testemunho.autor_id && navigation.navigate('PublicProfile', { userId: testemunho.autor_id })} activeOpacity={0.7}>
+                <Image source={{ uri: testemunho.autor_foto_url }} style={styles.avatarImage} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.avatarCirculo}>
+                <Text style={styles.avatarTexto}>{testemunho.autor_nome?.charAt(0)?.toUpperCase() || '?'}</Text>
               </View>
-              <Text style={styles.autorData}>
-                {getTempoRelativo(testemunho.criadoEm)}
-              </Text>
-            </TouchableOpacity>
+            )}
+            <View style={styles.autorInfo}>
+              <Text style={styles.autorNome}>{formatarNomeCurto(testemunho.autor_nome)}</Text>
+              <Text style={styles.autorData}>{getDataFormatada(testemunho.criadoEm)}</Text>
+            </View>
           </View>
-
           {testemunho.pedido_vinculado_id && (
             <TouchableOpacity
               style={styles.linkPedidoBtn}
-              onPress={() =>
-                navigation.navigate('PedidoDetalhes', {
-                  pedidoId: testemunho.pedido_vinculado_id,
-                })
-              }
+              onPress={() => navigation.navigate('PedidoDetalhes', { pedidoId: testemunho.pedido_vinculado_id })}
               activeOpacity={0.7}
             >
-              <Text style={styles.linkPedidoText}>🔗 Ver pedido de oração original</Text>
+              <Ionicons name="link" size={14} color="#3B82F6" style={{ marginRight: 6 }} />
+              <Text style={styles.linkPedidoText}>Ver pedido original</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Texto Completo do Testemunho */}
-        <View style={styles.textoSection}>
-          <View style={styles.textoLabelRow}>
-            <Text style={styles.textoLabel}>🕊️ Testemunho</Text>
-            <TouchableOpacity
-              style={styles.denunciarBtn}
-              onPress={handleDenunciar}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.denunciarBtnText}>🚩</Text>
+        {/* Cartao do Pedido de Oracao */}
+        <View style={styles.pedidoCard}>
+          <View style={styles.pedidoHeaderRow}>
+            <View style={styles.pedidoHeaderTitleRow}>
+              <Ionicons name="hand-left" size={22} color="#3B82F6" style={{ marginRight: 10 }} />
+              <Text style={styles.pedidoHeader}>Pedido de oracao</Text>
+            </View>
+            <TouchableOpacity onPress={handleDenunciar} activeOpacity={0.7}>
+              <Ionicons name="flag-outline" size={20} color="#94A3B8" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.textoCompleto}>{testemunho.texto}</Text>
+          <Text style={styles.pedidoBody}>{testemunho.texto}</Text>
         </View>
 
-        {/* Botão Glória a Deus! + Chuva de Partículas + Contadores */}
-        <View style={styles.gloriaSection}>
-          <TouchableOpacity
-            style={styles.gloriaBtn}
-            onPress={handleCelebrar}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.gloriaBtnIcon}>🙌</Text>
-            <Text style={styles.gloriaBtnText}>Glória a Deus!</Text>
-          </TouchableOpacity>
-
-          {/* Partículas flutuando para cima */}
-          {particulas.map((p) => (
-            <ParticulaGloria
-              key={p.id}
-              id={p.id}
-              xOffset={p.xOffset}
-              onRemover={removerParticula}
-            />
-          ))}
-
-          <View style={styles.gloriaInfo}>
-            <Text style={styles.gloriaIcon}>💬</Text>
-            <Text style={styles.gloriaCount}>{mensagens.length}</Text>
-            <Text style={styles.gloriaDivider}>|</Text>
-            <Text style={styles.gloriaIcon}>🔥</Text>
-            <Text style={styles.gloriaCount}>{testemunho.glorias || 0}</Text>
+        {/* Banner de Intercessao */}
+        <View style={styles.bannerCard}>
+          <View style={styles.bannerContent}>
+            <Ionicons name="hand-left" size={32} color="#FFFFFF" style={{ alignSelf: 'center', marginBottom: 8 }} />
+            <Text style={styles.bannerTitle}>Interceder</Text>
+            <Text style={styles.bannerSubTitle}>Ore por este pedido...</Text>
+            <Text style={styles.bannerAction}>[ Interceder ]</Text>
           </View>
         </View>
 
-        {/* Mensagens de Apoio */}
-        <View style={styles.mensagensSection}>
-          <View style={styles.sectionHeaderRow}>
-            <Ionicons name="chatbubble-ellipses" size={20} color="#1E293B" />
-            <Text style={styles.sectionTitle}>Parabéns e Mensagens</Text>
+        {/* Cartao de Estatisticas */}
+        <View style={styles.statsCard}>
+          <View style={styles.statSection}>
+            <Ionicons name="chatbubble-ellipses" size={24} color="#94A3B8" style={{ marginRight: 10 }} />
+            <View>
+              <Text style={styles.statNumber}>{mensagens.length}</Text>
+              <Text style={styles.statLabel}>Mensagens</Text>
+            </View>
           </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statSection}>
+            <Ionicons name="flame" size={24} color="#94A3B8" style={{ marginRight: 10 }} />
+            <View>
+              <Text style={styles.statNumber}>{testemunho.glorias || 0}</Text>
+              <Text style={styles.statLabel}>Intercessoes</Text>
+            </View>
+          </View>
+        </View>
 
-                    {mensagens.length === 0 ? (
+        {/* Cartao de Mensagens de Apoio */}
+        <View style={styles.comentarioCard}>
+          <View style={styles.comentarioCardRow}>
+            <View style={styles.comentarioHeaderRow}>
+              <Ionicons name="chatbubble-ellipses" size={22} color="#3B82F6" style={{ marginRight: 10 }} />
+              <Text style={styles.comentarioHeader}>Mensagens de apoio</Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={styles.comentarioFilterText}>Mais recentes ▼</Text>
+            </TouchableOpacity>
+          </View>
+          {mensagens.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateEmoji}>💭</Text>
+              <Text style={styles.emptyStateEmoji}>{'💭'}</Text>
               <Text style={styles.emptyStateText}>Nenhuma mensagem ainda.</Text>
-              <Text style={styles.emptyStateHint}>Seja o primeiro a dar os parabéns!</Text>
+              <Text style={styles.emptyStateHint}>Seja o primeiro a dar os parabens!</Text>
             </View>
           ) : (
             <View style={styles.feedContainer}>
@@ -447,45 +312,33 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
                   <View key={msg.id} style={styles.messageCard}>
                     <View style={styles.messageHeader}>
                       <View style={styles.authorInfoRow}>
-                        <View style={[styles.avatarContainer, ehAutor && { backgroundColor: '#A94438' }]}>
-                          <Text style={[{ fontSize: 16, fontWeight: '600', color: '#1E293B' }, ehAutor && { color: '#FFF' }]}>
+                        <View style={[styles.msgAvatarCirculo, ehAutor && { backgroundColor: '#3B82F6' }]}>
+                          <Text style={[styles.msgAvatarTexto, ehAutor && { color: '#FFF' }]}>
                             {msg.autor_nome?.charAt(0)?.toUpperCase() || '?'}
                           </Text>
                         </View>
                         <View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <Text style={styles.authorName}>{formatarNomeCurto(msg.autor_nome)}</Text>
-                            {ehAutor && (
-                              <View style={styles.autorBadge}>
-                                <Ionicons name="crown" size={12} color="#A94438" />
-                              </View>
-                            )}
+                            {ehAutor && <Ionicons name="crown" size={14} color="#3B82F6" />}
                           </View>
                           <Text style={styles.timeAgo}>{getTempoRelativo(msg.criadoEm)}</Text>
                         </View>
                       </View>
                       <View style={styles.actionIconsRow}>
-                        <TouchableOpacity
-                          onPress={() => handleReply(msg)}
-                          activeOpacity={0.6}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
+                        <TouchableOpacity onPress={() => handleReply(msg)} activeOpacity={0.6} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                           <Ionicons name="chatbubble-outline" size={18} color="#94A3B8" />
                         </TouchableOpacity>
                         {user && testemunho && (msg.autor_id === user.uid || testemunho.autor_id === user.uid) && (
-                          <TouchableOpacity
-                            onPress={() => handleExcluirMensagem(msg)}
-                            activeOpacity={0.6}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
+                          <TouchableOpacity onPress={() => handleExcluirMensagem(msg)} activeOpacity={0.6} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                             <Ionicons name="trash-outline" size={18} color="#94A3B8" />
                           </TouchableOpacity>
                         )}
                       </View>
                     </View>
                     {msg.replyTo_autor && (
-                      <View style={[styles.replyIndicator, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                        <Ionicons name="return-up-back" size={12} color="#A94438" />
+                      <View style={styles.replyIndicator}>
+                        <Ionicons name="return-up-back" size={12} color="#3B82F6" style={{ marginRight: 4 }} />
                         <Text style={styles.replyIndicatorText}>Respondendo a {formatarNomeCurto(msg.replyTo_autor)}</Text>
                       </View>
                     )}
@@ -497,40 +350,42 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
           )}
         </View>
 
-        <View style={{ height: SPACING.xxl }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* ============================================ */}
-      {/* Input de Mensagem (FORA da ScrollView) — Card Elevado */}
-      {/* ============================================ */}
+      {/* Bottom Input Bar */}
       {user ? (
-        <View style={[styles.inputAreaCard, { paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}>
+        <View style={[styles.bottomInputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           {replyingTo && (
             <View style={styles.replyBar}>
               <Text style={styles.replyBarText} numberOfLines={1}>
-                ↩ Respondendo a <Text style={styles.replyBarNome}>{formatarNomeCurto(replyingTo.autor)}</Text>
+                {'↩'} Respondendo a <Text style={styles.replyBarNome}>{formatarNomeCurto(replyingTo.autor)}</Text>
               </Text>
-              <TouchableOpacity
-                style={styles.replyBarClose}
-                onPress={handleCancelReply}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.replyBarCloseText}>✕</Text>
+              <TouchableOpacity style={styles.replyBarClose} onPress={handleCancelReply} activeOpacity={0.7}>
+                <Text style={styles.replyBarCloseText}>{'✕'}</Text>
               </TouchableOpacity>
             </View>
           )}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TextInput
-              ref={inputRef}
-              style={styles.inputField}
-              placeholder={replyingTo ? `Responder a ${formatarNomeCurto(replyingTo.autor)}...` : 'Escreva uma mensagem de parabéns...'}
-              placeholderTextColor="#94A3B8"
-              value={textoMensagem}
-              onChangeText={setTextoMensagem}
-              multiline
-              maxLength={500}
-              editable={!enviandoMensagem}
-            />
+          <View style={styles.inputRow}>
+            <View style={styles.inputWrapper}>
+              <TouchableOpacity style={styles.inputIcon} activeOpacity={0.6}>
+                <Ionicons name="mic-outline" size={20} color="#CBD5E1" />
+              </TouchableOpacity>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder={replyingTo ? `Responder a ${formatarNomeCurto(replyingTo.autor)}...` : 'Escreva uma mensagem de parabens...'}
+                placeholderTextColor="#CBD5E1"
+                value={textoMensagem}
+                onChangeText={setTextoMensagem}
+                multiline
+                maxLength={500}
+                editable={!enviandoMensagem}
+              />
+              <TouchableOpacity style={styles.inputIcon} activeOpacity={0.6}>
+                <Ionicons name="attach-outline" size={20} color="#CBD5E1" />
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={[styles.sendButton, (!textoMensagem.trim() || enviandoMensagem) && styles.enviarBtnDisabled]}
               onPress={handleEnviarMensagem}
@@ -540,20 +395,17 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
               {enviandoMensagem ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Ionicons name="send" size={18} color="#FFFFFF" />
+                <Ionicons name="send" size={18} color="#FFFFFF" style={{ marginLeft: 2 }} />
               )}
             </TouchableOpacity>
           </View>
         </View>
       ) : (
         <View style={styles.loginParaComentar}>
-          <Text style={styles.loginParaComentarText}>🔒 Faça login para enviar mensagens.</Text>
+          <Text style={styles.loginParaComentarText}>{'🔒'} Faca login para enviar mensagens.</Text>
         </View>
       )}
 
-      {/* ============================================ */}
-      {/* Modal de Denúncia (Lateral Animado) */}
-      {/* ============================================ */}
       <DenunciaModal
         visible={showDenunciaModal}
         onClose={() => setShowDenunciaModal(false)}
@@ -565,283 +417,97 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 }
 
 // ============================================================
-// Estilos
+// Estilos — Design "Detalhes do Pedido"
 // ============================================================
+const CARD_SHADOW = Platform.select({
+  ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4 },
+  android: { elevation: 2 },
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#F6F8FC' },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: SPACING.xxl },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
-  errorText: { fontSize: FONTS.sizes.lg, color: COLORS.gray500, marginBottom: SPACING.md },
-  voltarBtn: { backgroundColor: COLORS.primary, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: RADIUS.md },
-  voltarBtnText: { color: COLORS.white, fontWeight: '600' },
-  autorSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 }, android: { elevation: 3 } }),
-  },
-  autorRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm },
-  autorAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md },
-  autorAvatarFoto: { width: 48, height: 48, borderRadius: 24, marginRight: SPACING.md },
-  autorAvatarText: { color: COLORS.white, fontSize: FONTS.sizes.lg, fontWeight: 'bold' },
+  scrollContent: { padding: 16, paddingBottom: 100 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F6F8FC' },
+  errorText: { fontSize: 18, color: '#94A3B8', marginBottom: 16, fontFamily: 'Inter' },
+  voltarBtn: { backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  voltarBtnText: { color: '#FFFFFF', fontWeight: '600', fontFamily: 'Inter' },
+
+  // --- Cartao do Autor ---
+  autorCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
+  autorHeader: { flexDirection: 'row', alignItems: 'center' },
+  avatarCirculo: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarImage: { width: 48, height: 48, borderRadius: 24, marginRight: 12 },
+  avatarTexto: { fontFamily: 'Inter', fontSize: 20, fontWeight: '600', color: '#FFFFFF' },
   autorInfo: { flex: 1 },
-  autorNomeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  autorNome: { fontSize: FONTS.sizes.lg, fontFamily: 'Nunito_700Bold', color: COLORS.gray800 },
-  seloPremium: {
-    fontSize: 18,
-  },
-  cargoBadge: {
-    backgroundColor: COLORS.primary + '20',
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  cargoBadgeText: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  autorData: { fontSize: FONTS.sizes.sm, color: COLORS.gray400, marginTop: 2 },
-  denunciarBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' },
-  denunciarBtnText: { fontSize: 18 },
-  linkPedidoBtn: { backgroundColor: COLORS.primary + '10', borderRadius: RADIUS.md, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md, alignSelf: 'flex-start' },
-  linkPedidoText: { fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '600' },
-  textoSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 }, android: { elevation: 3 } }),
-  },
-  textoLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.sm,
-  },
-  textoLabel: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.gray500, textTransform: 'uppercase', letterSpacing: 1 },
-  textoCompleto: { fontSize: FONTS.sizes.md, color: COLORS.gray800, lineHeight: 26 },
-  gloriaSection: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    position: 'relative',
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 }, android: { elevation: 3 } }),
-  },
-  gloriaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4CAF50',
-    borderRadius: RADIUS.lg,
-    paddingVertical: 16,
-    gap: SPACING.sm,
-    ...SHADOWS.md,
-  },
-  gloriaBtnIcon: { fontSize: 24 },
-  gloriaBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', fontFamily: 'Inter' },
-  gloriaBtnDisabled: { opacity: 0.7 },
-  gloriaBtnDisabledText: { color: COLORS.gray400 },
-  gloriaBtnIconDisabled: { opacity: 0.5 },
-  gloriaBtnTextDisabled: { color: COLORS.gray400 },
-  gloriaInfo: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.md,
-    marginTop: SPACING.sm,
-  },
-  gloriaIcon: {
-    fontSize: 18,
-  },
-  gloriaDivider: {
-    fontSize: FONTS.sizes.md,
-    color: COLORS.gray300,
-    fontWeight: '300',
-    marginHorizontal: 2,
-  },
-  gloriaCount: {
-    fontSize: FONTS.sizes.md,
-    color: COLORS.gray600,
-    fontWeight: '700',
-  },
-  mensagensSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 }, android: { elevation: 3 } }),
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontFamily: 'Inter',
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: SPACING.lg,
-  },
-  emptyStateEmoji: {
-    fontSize: 40,
-    marginBottom: SPACING.sm,
-  },
-  emptyStateText: {
-    fontSize: FONTS.sizes.md,
-    color: COLORS.gray500,
-    textAlign: 'center',
-  },
-  emptyStateHint: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.gray400,
-    textAlign: 'center',
-    marginTop: SPACING.xs,
-  },
-  feedContainer: {
-    paddingHorizontal: 2,
-    paddingTop: 2,
-    paddingBottom: 2,
-  },
-  messageCard: {
-    backgroundColor: '#F0F4FF',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  messageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  authorInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#A94438',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  authorName: {
-    fontFamily: 'Inter',
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  timeAgo: {
-    fontFamily: 'Inter',
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  actionIconsRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  messageText: {
-    fontFamily: 'Inter',
-    fontSize: 15,
-    fontWeight: '400',
-    color: '#475569',
-    lineHeight: 24,
-  },
-  replyIndicator: { backgroundColor: COLORS.primary + '10', borderRadius: RADIUS.sm, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, marginBottom: SPACING.sm, alignSelf: 'flex-start' },
-  replyIndicatorText: { fontSize: 12, color: COLORS.primary, fontStyle: 'italic' },
-  inputArea: { marginTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.gray200, paddingTop: SPACING.md },
+  autorNome: { fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  autorData: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#94A3B8', marginTop: 2 },
+  linkPedidoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF4FF', alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, marginTop: 12 },
+  linkPedidoText: { fontFamily: 'Inter', fontSize: 12, fontWeight: '600', color: '#3B82F6' },
 
-  // Card Elevado de Input — respeita safe area do Android
-  inputAreaCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    ...SHADOWS.md,
-  },
+  // --- Cartao do Pedido ---
+  pedidoCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
+  pedidoHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  pedidoHeaderTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  pedidoHeader: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#1E293B' },
+  pedidoBody: { fontFamily: 'Inter', fontSize: 16, fontWeight: '400', color: '#1E293B', lineHeight: 24 },
 
-  replyBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary + '10', borderRadius: RADIUS.sm, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, marginBottom: SPACING.sm },
-  replyBarText: { flex: 1, fontSize: FONTS.sizes.xs, color: COLORS.gray600 },
-  replyBarNome: { fontWeight: 'bold', color: COLORS.primary },
-  replyBarClose: { padding: SPACING.xs },
-  replyBarCloseText: { fontSize: 14, color: COLORS.gray500, fontWeight: 'bold' },
-  inputField: {
-    flex: 1,
-    backgroundColor: '#F6F8FC',
-    borderRadius: 24,
-    minHeight: 48,
-    paddingHorizontal: 20,
-    fontFamily: 'Inter',
-    fontSize: 16,
-    color: '#1E293B',
-    marginRight: 12,
+  // --- Banner de Intercessao ---
+  bannerCard: {
+    borderRadius: 20, padding: 16, marginBottom: 16, backgroundColor: '#2575FC',
+    ...Platform.select({
+      ios: { shadowColor: '#2575FC', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+      android: { elevation: 4 },
+    }),
   },
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  bannerContent: { alignItems: 'center', paddingVertical: 8 },
+  bannerTitle: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
+  bannerSubTitle: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#FFFFFF', textAlign: 'center', marginTop: 4, opacity: 0.85 },
+  bannerAction: { fontFamily: 'Inter', fontSize: 12, fontWeight: '600', color: '#FFFFFF', textAlign: 'center', marginTop: 8, opacity: 0.9 },
+
+  // --- Cartao de Estatisticas ---
+  statsCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, flexDirection: 'row', marginBottom: 16, ...CARD_SHADOW },
+  statSection: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
+  statDivider: { width: 1, backgroundColor: '#E1E8EE', marginHorizontal: 8 },
+  statNumber: { fontFamily: 'Inter', fontSize: 20, fontWeight: '600', color: '#1E293B' },
+  statLabel: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#1E293B', opacity: 0.7 },
+
+  // --- Cartao de Mensagens de Apoio ---
+  comentarioCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
+  comentarioCardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  comentarioHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  comentarioHeader: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#1E293B' },
+  comentarioFilterText: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#94A3B8' },
+  emptyState: { alignItems: 'center', paddingVertical: 24 },
+  emptyStateEmoji: { fontSize: 40, marginBottom: 8 },
+  emptyStateText: { fontFamily: 'Inter', fontSize: 16, color: '#94A3B8', textAlign: 'center' },
+  emptyStateHint: { fontFamily: 'Inter', fontSize: 14, color: '#CBD5E1', textAlign: 'center', marginTop: 4 },
+  feedContainer: { paddingHorizontal: 2, paddingTop: 2, paddingBottom: 2 },
+  messageCard: { backgroundColor: '#F0F4FF', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F1F5F9' },
+  messageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  authorInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  msgAvatarCirculo: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+  msgAvatarTexto: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  authorName: { fontFamily: 'Inter', fontSize: 15, fontWeight: '700', color: '#1E293B' },
+  timeAgo: { fontFamily: 'Inter', fontSize: 12, fontWeight: '400', color: '#94A3B8', marginTop: 2 },
+  actionIconsRow: { flexDirection: 'row', gap: 16 },
+  messageText: { fontFamily: 'Inter', fontSize: 15, fontWeight: '400', color: '#475569', lineHeight: 24 },
+  replyIndicator: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3B82F610', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 12, alignSelf: 'flex-start' },
+  replyIndicatorText: { fontSize: 12, color: '#3B82F6', fontStyle: 'italic', fontFamily: 'Inter' },
+
+  // --- Bottom Input Bar ---
+  bottomInputBar: { backgroundColor: '#F6F8FC', paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E1E8EE', position: 'absolute', bottom: 0, left: 0, right: 0 },
+  replyBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3B82F610', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 8 },
+  replyBarText: { flex: 1, fontSize: 12, color: '#475569', fontFamily: 'Inter' },
+  replyBarNome: { fontWeight: 'bold', color: '#3B82F6' },
+  replyBarClose: { padding: 4 },
+  replyBarCloseText: { fontSize: 14, color: '#94A3B8', fontWeight: 'bold' },
+  inputRow: { flexDirection: 'row', alignItems: 'center' },
+  inputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#E6EAED', borderRadius: 999, paddingHorizontal: 12, marginRight: 12, height: 48 },
+  input: { flex: 1, fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#1E293B', height: '100%', paddingVertical: 0 },
+  inputIcon: { padding: 6 },
+  sendButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   enviarBtnDisabled: { opacity: 0.5 },
-  loginParaComentar: {
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.lg,
-    alignItems: 'center',
-    paddingVertical: SPACING.lg,
-    backgroundColor: COLORS.gray50,
-    borderRadius: RADIUS.md,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-  },
-  loginParaComentarText: { fontSize: FONTS.sizes.sm, color: COLORS.gray500 },
-
-  autorBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  loginParaComentar: { marginHorizontal: 24, marginTop: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 24, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 24, borderWidth: 1, borderColor: '#E2E8F0' },
+  loginParaComentarText: { fontSize: 14, color: '#94A3B8', fontFamily: 'Inter' },
 });
