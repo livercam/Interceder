@@ -494,7 +494,8 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
                 );
               })}
             </View>
-          )}        </View>
+          )}
+        </View>
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
