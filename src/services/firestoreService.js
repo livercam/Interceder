@@ -133,7 +133,9 @@ export const criarPedido = async (
   privacidade,
   celulasDestino,
   autor,
-  autorFotoUrl = null
+  autorFotoUrl = null,
+  anexoImagemUrl = null,
+  anexoAudioUrl = null,
 ) => {
   // Trava de segurança: apenas utilizadores autenticados podem criar pedidos
   if (!autor || !autor.uid || !autor.nome) {
@@ -170,6 +172,8 @@ export const criarPedido = async (
     status: 'ativo',
     denuncias_uids: [],
     mensagens_count: 0,
+    anexo_imagem_url: anexoImagemUrl || null,
+    anexo_audio_url: anexoAudioUrl || null,
     createdAt: serverTimestamp(),
   };
 

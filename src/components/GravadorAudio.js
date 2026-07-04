@@ -59,6 +59,7 @@ export default function GravadorAudio({ onAudioReady, onRemove }) {
       console.log('[AudioUpload] URL final:', urlF);
       setAudioUrl(urlF);
       setEstado('pronto');
+      if (onAudioReady) onAudioReady({ uri: urlF, titulo: 'Áudio', duracao: tempo });
       onAudioReady({ uri: urlF, titulo: '🎤 Áudio', duracao: fmt(tempo) });
     } catch (e) { console.warn('[Audio] Upload', e.message); Alert.alert('Erro', 'Falha no upload.'); setEstado('idle'); }
   }, [user, tempo, onAudioReady]);

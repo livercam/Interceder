@@ -19,6 +19,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { criarPedido } from "../services/firestoreService";
 import ActionHeader from "../components/ActionHeader";
 import MediaToolbar from "../components/MediaToolbar";
+import GravadorAudio from "../components/GravadorAudio";
+import { uploadImagem } from "../services/uploadService";
 
 var PRIMARY = "#A53F36";
 var ORANGE = "#E87A4A";
@@ -43,6 +45,8 @@ export default function CriarPedidoScreen({ navigation }) {
   var [categoria, setCategoria] = useState("saude");
   var [publicando, setPublicando] = useState(false);
   var [imagemUri, setImagemUri] = useState(null);
+  var [mostrarGravador, setMostrarGravador] = useState(false);
+  var [audioUrl, setAudioUrl] = useState(null);
 
   var podePublicar = texto.trim().length >= 3 && !publicando;
 
@@ -61,12 +65,13 @@ export default function CriarPedidoScreen({ navigation }) {
     if (!podePublicar) return;
     setPublicando(true);
     try {
+      var imagemFinal = imagemUri ? await uploadImagem(imagemUri, user, "pedidos") : null;
       await criarPedido(
         texto.trim(), categoria, "publico", [],
         { uid: user.uid, nome: user.displayName || "Anônimo" },
         user.photoURL || null,
-        imagemUri || null,
-        null,
+        imagemFinal,
+        audioUrl,
       );
       Alert.alert("✅ Pedido enviado", "Seu pedido de oração foi compartilhado.", [
         { text: "OK", onPress: () => navigation.goBack() },
@@ -76,7 +81,7 @@ export default function CriarPedidoScreen({ navigation }) {
     } finally {
       setPublicando(false);
     }
-  }, [podePublicar, texto, categoria, user, navigation, imagemUri]);
+  }, [podePublicar, texto, categoria, user, navigation, imagemUri, audioUrl]);
 
   var handlePickerImagem = useCallback(async () => {
     Alert.alert("Adicionar imagem", "Escolha:", [
@@ -175,6 +180,21 @@ export default function CriarPedidoScreen({ navigation }) {
           </Text>
         </View>
 
+        {mostrarGravador && !audioUrl && (
+          <View style={styles.audioContainer}>
+            <GravadorAudio
+              onAudioReady={(dados) => { setAudioUrl(typeof dados === "string" ? dados : dados.uri); setMostrarGravador(false); }}
+              onRemove={() => { setAudioUrl(null); }}
+            />
+          </View>
+        )}
+
+        {audioUrl && (
+          <View style={styles.audioContainer}>
+            <View style={{flexDirection:"row",alignItems:"center",backgroundColor:"#F0FDF4",borderRadius:12,padding:12,gap:8}}><Ionicons name="musical-note" size={20} color="#065F46" /><Text style={{flex:1,fontSize:14,color:"#065F46",fontWeight:"600"}}>Audio adicionado</Text><TouchableOpacity onPress={() => setAudioUrl(null)}><Ionicons name="close-circle" size={24} color="#EF4444" /></TouchableOpacity></View>
+          </View>
+        )}
+
         {imagemUri && (
           <View style={styles.previewContainer}>
             <Image source={{ uri: imagemUri }} style={styles.previewImage} resizeMode="cover" />
@@ -196,7 +216,7 @@ export default function CriarPedidoScreen({ navigation }) {
         </View>
 
         <MediaToolbar
-          onGravarAudio={() => {}}
+          onGravarAudio={() => setMostrarGravador(true)}
           onAdicionarImagem={handlePickerImagem}
         />
 
@@ -237,4 +257,5 @@ var styles = StyleSheet.create({
   removePreviewBtn: { position: "absolute", top: 8, right: 8, backgroundColor: "#FFFFFF", borderRadius: 14 },
   privacidadeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   privacidadeText: { fontSize: 13, color: TEXT_SECONDARY, flex: 1 },
+  audioContainer: { marginBottom: 16 },
 });

@@ -19,6 +19,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { adicionarTestemunho } from '../services/firestoreService';
 import ActionHeader from '../components/ActionHeader';
 import MediaToolbar from '../components/MediaToolbar';
+import GravadorAudio from '../components/GravadorAudio';
+import { uploadImagem } from '../services/uploadService';
 
 const PRIMARY = '#A53F36';
 const GREEN = '#10B981';
@@ -36,6 +38,8 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
   const [texto, setTexto] = useState('');
   const [publicando, setPublicando] = useState(false);
   const [imagemUri, setImagemUri] = useState(null);
+  const [mostrarGravador, setMostrarGravador] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null);
 
   const podePublicar = texto.trim().length >= 3 && !publicando;
 
@@ -54,6 +58,7 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
     if (!podePublicar) return;
     setPublicando(true);
     try {
+      const imagemFinal = imagemUri ? await uploadImagem(imagemUri, user, "testemunhos") : null;
       const userData = {
         uid: user.uid,
         nome: user.displayName || 'Irmão(ã)',
@@ -66,8 +71,8 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
         texto.trim(),
         pedidoVinculado?.id || null,
         pedidoVinculado?.categoria || null,
-        imagemUri || null,
-        null,
+        imagemFinal,
+        audioUrl,
       );
       Alert.alert('🎉 Glória a Deus!', 'Seu testemunho foi compartilhado.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -77,7 +82,7 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
     } finally {
       setPublicando(false);
     }
-  }, [podePublicar, texto, pedidoVinculado, user, navigation, imagemUri]);
+  }, [podePublicar, texto, pedidoVinculado, user, navigation, imagemUri, audioUrl]);
 
   const handlePickerImagem = useCallback(async () => {
     Alert.alert('Adicionar imagem', 'Escolha:', [
@@ -185,6 +190,21 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
           </Text>
         </View>
 
+        {mostrarGravador && !audioUrl && (
+          <View style={styles.audioContainer}>
+            <GravadorAudio
+              onAudioReady={(dados) => { setAudioUrl(typeof dados === "string" ? dados : dados.uri); setMostrarGravador(false); }}
+              onRemove={() => { setAudioUrl(null); }}
+            />
+          </View>
+        )}
+
+        {audioUrl && (
+          <View style={styles.audioContainer}>
+            <View style={{flexDirection:"row",alignItems:"center",backgroundColor:"#F0FDF4",borderRadius:12,padding:12,gap:8}}><Ionicons name="musical-note" size={20} color="#065F46" /><Text style={{flex:1,fontSize:14,color:"#065F46",fontWeight:"600"}}>Audio adicionado</Text><TouchableOpacity onPress={() => setAudioUrl(null)}><Ionicons name="close-circle" size={24} color="#EF4444" /></TouchableOpacity></View>
+          </View>
+        )}
+
         {imagemUri && (
           <View style={styles.previewContainer}>
             <Image source={{ uri: imagemUri }} style={styles.previewImage} resizeMode="cover" />
@@ -206,7 +226,7 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
         </View>
 
         <MediaToolbar
-          onGravarAudio={() => {}}
+          onGravarAudio={() => setMostrarGravador(true)}
           onAdicionarImagem={handlePickerImagem}
         />
 
@@ -244,4 +264,5 @@ const styles = StyleSheet.create({
   removePreviewBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: '#FFFFFF', borderRadius: 14 },
   privacidadeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   privacidadeText: { fontSize: 13, color: TEXT_SECONDARY, flex: 1 },
+  audioContainer: { marginBottom: 16 },
 });
