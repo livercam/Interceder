@@ -487,15 +487,17 @@ const styles = StyleSheet.create({
   autorData: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#94A3B8', marginTop: 2 },
 
 
-  // --- Cartao do Testemunho (Estilo Refinado) ---
+  // --- Cartao do Testemunho (igual pedidoContainer do PedidoDetalhes) ---
   TestemunhoCardContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 8,
     padding: 24,
-    marginBottom: 16,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 },
-      android: { elevation: 2 },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12 },
+      android: { elevation: 3 },
     }),
   },
   TestemunhoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
@@ -507,9 +509,9 @@ const styles = StyleSheet.create({
   iconAlertBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' },
   TestemunhoBodyText: { fontFamily: 'Inter', fontSize: 16, fontWeight: '400', color: '#334155', lineHeight: 28 },
   TestemunhoDivider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 24 },
-  TestemunhoFooter: { flexDirection: 'row', justifyContent: 'flex-start', gap: 32 },
+  TestemunhoFooter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 80 },
   footerItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  footerIconBg: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EEF4FF', justifyContent: 'center', alignItems: 'center' },
+  footerIconBg: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
   footerTextCol: { flexDirection: 'column' },
   footerLabel: { fontFamily: 'Inter', fontSize: 12, fontWeight: '500', color: '#64748B', marginBottom: 2 },
   footerValue: { fontFamily: 'Inter', fontSize: 14, fontWeight: '600', color: '#1E293B' },
