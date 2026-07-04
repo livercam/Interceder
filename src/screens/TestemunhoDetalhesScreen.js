@@ -69,7 +69,7 @@ function ParticulaGloria({ id, xOffset, onRemover }) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(animY, { toValue: -150, duration: 1000, useNativeDriver: true }),
+      Animated.timing(animY, { toValue: -200, duration: 1500, useNativeDriver: true }),
       Animated.timing(animOpacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
     ]).start(() => onRemover(id));
   }, []);
@@ -77,7 +77,7 @@ function ParticulaGloria({ id, xOffset, onRemover }) {
   return (
     <Animated.Text style={{
       position: 'absolute', bottom: 0, left: 20 + xOffset,
-      fontSize: 24, transform: [{ translateY: animY }],
+      fontSize: 48, transform: [{ translateY: animY }],
       opacity: animOpacity, zIndex: 999,
     }}>
       {emoji}
@@ -126,11 +126,11 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
   const handleCelebrar = useCallback(async () => {
     if (!user) { Alert.alert('Atencao', 'Faca login para celebrar.'); return; }
-    const novaParticula = {
-      id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-      xOffset: Math.random() * 40 - 20,
-    };
-    setParticulas((prev) => [...prev, novaParticula]);
+    const novasParticulas = Array.from({ length: 5 }, () => ({
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 8),
+      xOffset: Math.random() * 160 - 80,
+    }));
+    setParticulas((prev) => [...prev, ...novasParticulas]);
     try {
       await celebrarTestemunho(testemunhoId, user.uid);
       setTestemunho((prev) => prev ? { ...prev, glorias: (prev.glorias || 0) + 1 } : prev);
