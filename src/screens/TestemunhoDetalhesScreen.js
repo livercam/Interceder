@@ -62,24 +62,30 @@ const getDataFormatada = (timestamp) => {
 
 const EMOJIS_GLORIA = ['🙌', '🔥', '✨', '🌟', '💫', '🕊️', '❤️', '🎉'];
 
-function ParticulaGloria({ id, xOffset, onRemover }) {
+function ParticulaGloria({ id, xOffset, bottomOffset = 0, delay = 0, onRemover }) {
   const animY = useRef(new Animated.Value(0)).current;
   const animOpacity = useRef(new Animated.Value(1)).current;
   const emoji = useRef(EMOJIS_GLORIA[Math.floor(Math.random() * EMOJIS_GLORIA.length)]).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(animY, { toValue: -200, duration: 1500, useNativeDriver: true }),
-      Animated.timing(animOpacity, { toValue: 0, duration: 1000, useNativeDriver: true }),
+      Animated.timing(animY, { toValue: -250 - Math.random() * 100, duration: 1200 + Math.random() * 600, useNativeDriver: true }),
+      Animated.timing(animOpacity, { toValue: 0, duration: 800 + Math.random() * 400, useNativeDriver: true }),
     ]).start(() => onRemover(id));
   }, []);
 
+  const animStyle = {
+    position: 'absolute',
+    bottom: bottomOffset,
+    left: 30 + xOffset,
+    fontSize: 40 + Math.random() * 20,
+    transform: [{ translateY: animY }],
+    opacity: animOpacity,
+    zIndex: 999,
+  };
+
   return (
-    <Animated.Text style={{
-      position: 'absolute', bottom: 0, left: 20 + xOffset,
-      fontSize: 48, transform: [{ translateY: animY }],
-      opacity: animOpacity, zIndex: 999,
-    }}>
+    <Animated.Text style={animStyle}>
       {emoji}
     </Animated.Text>
   );
@@ -126,9 +132,11 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
   const handleCelebrar = useCallback(async () => {
     if (!user) { Alert.alert('Atencao', 'Faca login para celebrar.'); return; }
-    const novasParticulas = Array.from({ length: 5 }, () => ({
+    const novasParticulas = Array.from({ length: 8 }, (_, i) => ({
       id: Date.now().toString() + Math.random().toString(36).slice(2, 8),
-      xOffset: Math.random() * 160 - 80,
+      xOffset: Math.random() * 200 - 100,
+      bottomOffset: Math.random() * 40,
+      delay: i * 80,
     }));
     setParticulas((prev) => [...prev, ...novasParticulas]);
     try {
@@ -327,7 +335,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
           {/* Particulas flutuando para cima */}
           {particulas.map((p) => (
-            <ParticulaGloria key={p.id} id={p.id} xOffset={p.xOffset} onRemover={removerParticula} />
+            <ParticulaGloria key={p.id} id={p.id} xOffset={p.xOffset} bottomOffset={p.bottomOffset} delay={p.delay} onRemover={removerParticula} />
           ))}
 
           {/* Parte Inferior: Estatisticas */}
