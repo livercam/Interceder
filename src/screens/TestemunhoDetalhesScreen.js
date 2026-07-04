@@ -232,16 +232,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
               <Text style={styles.autorData}>{getDataFormatada(testemunho.criadoEm)}</Text>
             </View>
           </View>
-          {testemunho.pedido_vinculado_id && (
-            <TouchableOpacity
-              style={styles.linkTestemunhoBtn}
-              onPress={() => navigation.navigate('PedidoDetalhes', { pedidoId: testemunho.pedido_vinculado_id })}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="link" size={14} color="#3B82F6" style={{ marginRight: 6 }} />
-              <Text style={styles.linkTestemunhoText}>Ver pedido original</Text>
-            </TouchableOpacity>
-          )}
+          {/* Link movido para o rodape do card de testemunho */}
         </View>
 
         {/* Cartao do Testemunho (Estilo Refinado) */}
@@ -253,7 +244,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
                 <Ionicons name="hand-left" size={22} color="#3B82F6" />
               </View>
               <View style={styles.TestemunhoTitleContainer}>
-                <Text style={styles.TestemunhoTitle}>Testemunho de Oracao</Text>
+                <Text style={styles.TestemunhoTitle}>Testemunho</Text>
                 <View style={styles.TestemunhoUnderline} />
               </View>
             </View>
@@ -283,7 +274,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
                 </View>
                 <View style={styles.footerTextCol}>
                   <Text style={styles.footerLabel}>Acesse</Text>
-                  <Text style={styles.footerValue}>Testemunho Original</Text>
+                  <Text style={styles.footerValue}>Pedido Original</Text>
                 </View>
               </TouchableOpacity>
             ) : (
@@ -293,7 +284,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
                 </View>
                 <View style={styles.footerTextCol}>
                   <Text style={styles.footerLabel}>Acesse</Text>
-                  <Text style={styles.footerValue}>Testemunho Original</Text>
+                  <Text style={styles.footerValue}>Pedido Original</Text>
                 </View>
               </View>
             )}
@@ -507,8 +498,7 @@ const styles = StyleSheet.create({
   autorInfo: { flex: 1 },
   autorNome: { fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: '#1E293B' },
   autorData: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#94A3B8', marginTop: 2 },
-  linkTestemunhoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF4FF', alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, marginTop: 12 },
-  linkTestemunhoText: { fontFamily: 'Inter', fontSize: 12, fontWeight: '600', color: '#3B82F6' },
+
 
   // --- Cartao do Testemunho (Estilo Refinado) ---
   TestemunhoCardContainer: {
