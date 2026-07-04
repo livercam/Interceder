@@ -97,6 +97,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const inputRef = useRef(null);
+  const scrollViewRef = useRef(null);
   const [showDenunciaModal, setShowDenunciaModal] = useState(false);
   const [particulas, setParticulas] = useState([]);
 
@@ -207,13 +208,15 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 70}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : insets.top + 10}
     >
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        ref={scrollViewRef}
+        onContentSizeChange={() => {}}
       >
         {/* Cabecalho do Autor (igual PedidoDetalhes) */}
         <View style={styles.autorSection}>
