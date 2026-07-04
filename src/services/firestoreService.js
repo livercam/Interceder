@@ -1215,7 +1215,7 @@ export const verificarUsernameDisponivel = async (username, excluirUid) => {
  * @param {string|null} pedidoVinculadoId - ID do pedido de oração vinculado (opcional)
  * @returns {Promise<string>} - ID do testemunho criado
  */
-export const adicionarTestemunho = async (user, texto, pedidoVinculadoId = null, pedidoVinculadoCategoria = null) => {
+export const adicionarTestemunho = async (user, texto, pedidoVinculadoId = null, pedidoVinculadoCategoria = null, anexoImagemUrl = null, anexoAudioUrl = null) => {
   const testemunhoData = {
     autor_id: user.uid,
     autor_nome: user.nome || user.displayName || 'Irmão(ã)',
@@ -1230,6 +1230,8 @@ export const adicionarTestemunho = async (user, texto, pedidoVinculadoId = null,
     pedido_vinculado_categoria: pedidoVinculadoCategoria,
     glorias: 0,
     status: 'ativo',
+    anexo_imagem_url: anexoImagemUrl || null,
+    anexo_audio_url: anexoAudioUrl || null,
     criadoEm: serverTimestamp(),
   };
 

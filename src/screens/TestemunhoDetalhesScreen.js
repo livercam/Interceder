@@ -37,6 +37,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { formatarNomeCurto } from '../utils/formatters';
 import DenunciaModal from '../components/DenunciaModal';
+import FeedImagem from '../components/FeedImagem';
+import FeedAudio from '../components/FeedAudio';
 
 // Utilitarios
 const getTempoRelativo = (timestamp) => {
@@ -272,7 +274,8 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
           {/* Corpo do Texto */}
           <Text style={styles.TestemunhoBodyText}>{testemunho.texto}</Text>
-
+          {testemunho.anexo_imagem_url ? <FeedImagem imagemUrl={testemunho.anexo_imagem_url} texto={null} /> : null}
+          {testemunho.anexo_audio_url ? <FeedAudio audioUrl={testemunho.anexo_audio_url} /> : null}
           {/* Divisoria */}
           <View style={styles.TestemunhoDivider} />
 

@@ -43,6 +43,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { formatarNomeCurto } from "../utils/formatters";
 import FeedAudio from "../components/FeedAudio";
+import FeedImagem from "../components/FeedImagem";
 import DenunciaModal from "../components/DenunciaModal";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -457,6 +458,8 @@ export default function PedidoDetalhesScreen({ route, navigation }) {
             </View>
           </View>
           <Text style={styles.pedidoBody}>{pedido.texto}</Text>
+          {pedido.anexo_imagem_url ? <FeedImagem imagemUrl={pedido.anexo_imagem_url} texto={null} /> : null}
+          {pedido.anexo_audio_url ? <FeedAudio audioUrl={pedido.anexo_audio_url} /> : null}
           <View style={styles.pedidoDivider} />
           <View style={styles.pedidoFooter}>
             <View style={styles.pedidoFooterItem}>

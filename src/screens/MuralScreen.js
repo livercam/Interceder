@@ -481,6 +481,7 @@ function CriarPedidoModal({ visible, onClose, onCriar, celulasDisponiveis, categ
 // Tela Principal do Mural
 // ============================================================
 export default function MuralScreen() {
+  const navigation = useNavigation();
   const [pedidos, setPedidos] = useState([]);
   const [filtroCategoria, setFiltroCategoria] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -710,19 +711,13 @@ export default function MuralScreen() {
           <>
             <TouchableOpacity
               style={styles.fab}
-              onPress={() => setModalVisible(true)}
+              onPress={() => navigation.navigate('CriarPedido')}
               activeOpacity={0.8}
             >
               <Text style={styles.fabText}>+</Text>
             </TouchableOpacity>
 
-            <CriarPedidoModal
-              visible={modalVisible}
-              onClose={() => setModalVisible(false)}
-              onCriar={handleCriarPedido}
-              celulasDisponiveis={celulasDoUsuario}
-              categoriasDisponiveis={categorias}
-            />
+
           </>
         )}
       </View>
@@ -767,19 +762,13 @@ export default function MuralScreen() {
         <>
           <TouchableOpacity
             style={styles.fab}
-            onPress={() => setModalVisible(true)}
+            onPress={() => navigation.navigate('CriarPedido')}
             activeOpacity={0.8}
           >
             <Text style={styles.fabText}>+</Text>
           </TouchableOpacity>
 
-            <CriarPedidoModal
-              visible={modalVisible}
-              onClose={() => setModalVisible(false)}
-              onCriar={handleCriarPedido}
-              celulasDisponiveis={celulasDoUsuario}
-              categoriasDisponiveis={categorias}
-            />
+
         </>
       )}
     </View>

@@ -38,6 +38,8 @@ import SuporteScreen from '../screens/SuporteScreen';
 import WebViewScreen from '../screens/WebViewScreen';
 import CustomSplashScreen from '../components/CustomSplashScreen';
 import HeaderLogo from '../components/HeaderLogo';
+import CriarPedidoScreen from '../screens/CriarPedidoScreen';
+import CriarTestemunhoScreen from '../screens/CriarTestemunhoScreen';
 
 import { Ionicons } from '@expo/vector-icons';
 import NotificationIcon from '../components/NotificationIcon';
@@ -475,6 +477,16 @@ export default function AppNavigator() {
               }}
             />
             <Stack.Screen
+              name="CriarPedido"
+              component={CriarPedidoScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CriarTestemunho"
+              component={CriarTestemunhoScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="EditarCelula"
               component={EditarCelulaScreen}
               options={{
@@ -493,6 +505,7 @@ export default function AppNavigator() {
                 animation: 'slide_from_bottom',
               }}
             />
+            
             <Stack.Screen
               name="Suporte"
               component={SuporteScreen}

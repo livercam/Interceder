@@ -166,257 +166,12 @@ const TestemunhoCard = React.memo(function TestemunhoCard({ testemunho }) {
 });
 
 // ============================================================
-// Modal de Criação de Testemunho
-// ============================================================
-function CriarTestemunhoModal({ visible, onClose, user, userCargo, userIsPremium, userProfile }) {
-  const insets = useSafeAreaInsets();
-  const [texto, setTexto] = useState('');
-  const [meusPedidos, setMeusPedidos] = useState([]);
-  const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [carregandoPedidos, setCarregandoPedidos] = useState(true);
-
-  // Carregar pedidos do utilizador ao abrir o modal
-  useEffect(() => {
-    const carregarPedidos = async () => {
-      if (user?.uid) {
-        setCarregandoPedidos(true);
-        try {
-          const pedidos = await buscarMeusPedidos(user.uid);
-          console.log('Pedidos carregados para o seletor:', pedidos.length);
-          setMeusPedidos(pedidos);
-        } catch (error) {
-          console.error('Erro ao carregar pedidos:', error);
-          setMeusPedidos([]);
-        } finally {
-          setCarregandoPedidos(false);
-        }
-      }
-    };
-    carregarPedidos();
-  }, [user?.uid]);
-
-  const handleCriar = async () => {
-    if (!texto.trim()) {
-      Alert.alert('Atenção', 'Escreva o seu testemunho.');
-      return;
-    }
-
-    // Extrair categoria do pedido selecionado (se houver)
-    const pedidoVinculadoId = pedidoSelecionado;
-    let categoriaSelecionada = null;
-    if (pedidoVinculadoId) {
-      const pedidoEncontrado = meusPedidos.find(p => p.id === pedidoVinculadoId);
-      categoriaSelecionada = pedidoEncontrado ? pedidoEncontrado.categoria : null;
-    }
-
-    setLoading(true);
-    try {
-      // Enriquecer o objeto user com o cargo e isPremium para desnormalização
-      const userComCargo = {
-        ...user,
-        cargo: userCargo || 'membro',
-        isPremium: userIsPremium === true || false,
-        endossosCount: userProfile?.endossos_uids?.length || 0,
-        verificadoLideranca: userProfile?.verificado_lideranca === true,
-        foto_url: userProfile?.foto_url || user?.photoURL || null,
-      };
-      await adicionarTestemunho(
-        userComCargo,
-        texto,
-        pedidoVinculadoId,
-        categoriaSelecionada
-      );
-      setTexto('');
-      setPedidoSelecionado(null);
-      onClose();
-      Alert.alert('🕊️ Testemunho registado!', 'Obrigado por compartilhar o seu milagre!');
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível publicar o testemunho.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClose = () => {
-    setTexto('');
-    setPedidoSelecionado(null);
-    onClose();
-  };
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: SPACING.xxl }}
-            >
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Testemunho</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Campo de Texto */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Seu testemunho</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Compartilhe aqui o milagre que Deus realizou..."
-                placeholderTextColor={COLORS.gray400}
-                value={texto}
-                onChangeText={setTexto}
-                multiline
-                numberOfLines={5}
-                textAlignVertical="top"
-                editable={!loading}
-              />
-            </View>
-
-            {/* Seletor de Pedido Vinculado */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>🔗 Vincular a um pedido (opcional)</Text>
-              {carregandoPedidos ? (
-                <View style={styles.carregandoPedidos}>
-                  <ActivityIndicator size="small" color={COLORS.primary} />
-                  <Text style={styles.carregandoPedidosText}>
-                    Carregando seus pedidos...
-                  </Text>
-                </View>
-              ) : (
-                <ScrollView
-                  style={styles.pedidosLista}
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={false}
-                >
-                  {/* Opção "Testemunho Avulso" */}
-                  <TouchableOpacity
-                    style={[
-                      styles.pedidoOption,
-                      pedidoSelecionado === null && styles.pedidoOptionActive,
-                    ]}
-                    onPress={() => setPedidoSelecionado(null)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.pedidoOptionIcon,
-                        pedidoSelecionado === null && styles.pedidoOptionIconActive,
-                      ]}
-                    >
-                      {pedidoSelecionado === null ? '✅' : '✨'}
-                    </Text>
-                    <View style={styles.pedidoOptionInfo}>
-                      <Text
-                        style={[
-                          styles.pedidoOptionTitle,
-                          pedidoSelecionado === null && styles.pedidoOptionTitleActive,
-                        ]}
-                      >
-                        Testemunho Avulso
-                      </Text>
-                      <Text style={styles.pedidoOptionDesc}>
-                        Não vincular a pedido
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Pedidos do Utilizador */}
-                  {meusPedidos.length === 0 ? (
-                    <View style={styles.semPedidosMsg}>
-                      <Text style={styles.semPedidosMsgText}>
-                        Nenhum pedido encontrado.
-                      </Text>
-                    </View>
-                  ) : (
-                    meusPedidos.map((pedido) => (
-                      <TouchableOpacity
-                        key={pedido.id}
-                        style={[
-                          styles.pedidoOption,
-                          pedidoSelecionado === pedido.id &&
-                            styles.pedidoOptionActive,
-                        ]}
-                        onPress={() => setPedidoSelecionado(pedido.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.pedidoOptionIcon,
-                            pedidoSelecionado === pedido.id &&
-                              styles.pedidoOptionIconActive,
-                          ]}
-                        >
-                          {pedidoSelecionado === pedido.id ? '✅' : '🔲'}
-                        </Text>
-                        <View style={styles.pedidoOptionInfo}>
-                          <Text
-                            style={[
-                              styles.pedidoOptionTitle,
-                              pedidoSelecionado === pedido.id &&
-                                styles.pedidoOptionTitleActive,
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {pedido.texto}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-              )}
-            </View>
-
-            {/* Aviso LGPD - Transparência de Dados */}
-            <View style={styles.avisoLgpd}>
-              <Text style={styles.avisoLgpdIcon}>🌐</Text>
-              <Text style={styles.avisoLgpdText}>
-                Este conteúdo será público e visível para toda a comunidade. Evite partilhar dados pessoais sensíveis de terceiros.
-              </Text>
-            </View>
-
-            {/* Botão Publicar */}
-            <TouchableOpacity
-              style={[styles.publicarBtn, loading && styles.publicarBtnDisabled]}
-              onPress={handleCriar}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color={COLORS.white} size="small" />
-              ) : (
-                <Text style={styles.publicarBtnText}>Publicar</Text>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// ============================================================
 // Tela Principal de Testemunhos
 // ============================================================
 export default function TestemunhosScreen() {
+  const navigation = useNavigation();
   const [testemunhos, setTestemunhos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
   const { user, userProfile } = useAuth();
   const cargoAtual = userProfile?.titulo_ministerial || 'membro';
   const isPremiumAtual = userProfile?.isPremium === true || false;
@@ -478,24 +233,14 @@ export default function TestemunhosScreen() {
         </View>
 
         {user && (
-          <>
             <TouchableOpacity
               style={styles.fab}
-              onPress={() => setModalVisible(true)}
+              onPress={() => navigation.navigate('CriarTestemunho')}
               activeOpacity={0.8}
             >
               <Text style={styles.fabText}>+</Text>
             </TouchableOpacity>
 
-            <CriarTestemunhoModal
-              visible={modalVisible}
-              onClose={() => setModalVisible(false)}
-              user={user}
-              userCargo={cargoAtual}
-              userIsPremium={isPremiumAtual}
-              userProfile={userProfile}
-            />
-          </>
         )}
       </View>
     );
@@ -530,24 +275,14 @@ export default function TestemunhosScreen() {
 
       {/* FAB - apenas para utilizadores logados */}
       {user && (
-        <>
           <TouchableOpacity
             style={styles.fab}
-            onPress={() => setModalVisible(true)}
+            onPress={() => navigation.navigate('CriarTestemunho')}
             activeOpacity={0.8}
           >
             <Text style={styles.fabText}>+</Text>
           </TouchableOpacity>
 
-            <CriarTestemunhoModal
-              visible={modalVisible}
-              onClose={() => setModalVisible(false)}
-              user={user}
-              userCargo={cargoAtual}
-              userIsPremium={isPremiumAtual}
-              userProfile={userProfile}
-            />
-        </>
       )}
     </View>
   );
