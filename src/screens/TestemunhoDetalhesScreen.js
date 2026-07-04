@@ -519,7 +519,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     marginVertical: 12,
-    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     ...Platform.select({
@@ -533,6 +532,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   actionBannerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   actionIconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
