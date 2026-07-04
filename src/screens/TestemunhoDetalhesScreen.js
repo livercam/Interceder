@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
   replyBarNome: { fontWeight: 'bold', color: '#3B82F6' },
   replyBarClose: { padding: 4 },
   replyBarCloseText: { fontSize: 14, color: '#94A3B8', fontWeight: 'bold' },
-  inputField: { flex: 1, backgroundColor: COLORS.background, borderRadius: 24, minHeight: 48, paddingHorizontal: 20, fontFamily: 'Inter', fontSize: 16, color: '#1E293B', marginRight: 12 },
+  inputField: { flex: 1, backgroundColor: '#F6F8FC', borderRadius: 24, minHeight: 48, paddingHorizontal: 20, fontFamily: 'Inter', fontSize: 16, color: '#1E293B', marginRight: 12 },
   inputFieldActive: { minHeight: 80 },
   sendButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   enviarBtnDisabled: { opacity: 0.5 },
