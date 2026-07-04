@@ -95,6 +95,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
   const [mensagens, setMensagens] = useState([]);
   const [textoMensagem, setTextoMensagem] = useState('');
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
+  const [mensagensExpandidas, setMensagensExpandidas] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
   const inputRef = useRef(null);
   const scrollViewRef = useRef(null);
@@ -399,7 +400,32 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
                         <Text style={styles.replyIndicatorText}>Respondendo a {formatarNomeCurto(msg.replyTo_autor)}</Text>
                       </View>
                     )}
-                    <Text style={styles.messageText}>{msg.texto}</Text>
+                    {msg.texto ? (
+                      <View>
+                        <Text
+                          style={styles.messageText}
+                          numberOfLines={mensagensExpandidas[msg.id] ? undefined : 3}
+                        >
+                          {msg.texto}
+                        </Text>
+                        {msg.texto.length > 120 && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setMensagensExpandidas((prev) => ({
+                                ...prev,
+                                [msg.id]: !prev[msg.id],
+                              }));
+                            }}
+                            activeOpacity={0.7}
+                            style={{ marginTop: 4 }}
+                          >
+                            <Text style={styles.lerMaisTexto}>
+                              {mensagensExpandidas[msg.id] ? 'Ler menos' : '... Ler mais'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ) : null}
                   </View>
                 );
               })}
@@ -621,6 +647,7 @@ const styles = StyleSheet.create({
   inputFieldActive: { minHeight: 80 },
   sendButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   enviarBtnDisabled: { opacity: 0.5 },
+  lerMaisTexto: { fontFamily: 'Inter', fontSize: 13, fontWeight: '700', color: '#3B82F6' },
   loginParaComentar: { marginHorizontal: 24, marginTop: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 24, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 24, borderWidth: 1, borderColor: '#E2E8F0' },
   loginParaComentarText: { fontSize: 14, color: '#94A3B8', fontFamily: 'Inter' },
 });
