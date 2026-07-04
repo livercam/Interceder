@@ -244,18 +244,69 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Cartao do Testemunho de Oracao */}
-        <View style={styles.testemunhoCard}>
-          <View style={styles.testemunhoHeaderRow}>
-            <View style={styles.testemunhoHeaderTitleRow}>
-              <Ionicons name="hand-left" size={22} color="#3B82F6" style={{ marginRight: 10 }} />
-              <Text style={styles.testemunhoHeader}>Testemunho</Text>
+        {/* Cartao do Testemunho (Estilo Refinado) */}
+        <View style={styles.TestemunhoCardContainer}>
+          {/* Cabecalho */}
+          <View style={styles.TestemunhoHeader}>
+            <View style={styles.TestemunhoHeaderLeft}>
+              <View style={styles.iconPrimaryBg}>
+                <Ionicons name="hand-left" size={22} color="#3B82F6" />
+              </View>
+              <View style={styles.TestemunhoTitleContainer}>
+                <Text style={styles.TestemunhoTitle}>Testemunho de Oracao</Text>
+                <View style={styles.TestemunhoUnderline} />
+              </View>
             </View>
             <TouchableOpacity onPress={handleDenunciar} activeOpacity={0.7}>
-              <Ionicons name="flag-outline" size={20} color="#94A3B8" />
+              <View style={styles.iconAlertBg}>
+                <Ionicons name="flag-outline" size={18} color="#EF4444" />
+              </View>
             </TouchableOpacity>
           </View>
-          <Text style={styles.testemunhoBody}>{testemunho.texto}</Text>
+
+          {/* Corpo do Texto */}
+          <Text style={styles.TestemunhoBodyText}>{testemunho.texto}</Text>
+
+          {/* Divisoria */}
+          <View style={styles.TestemunhoDivider} />
+
+          {/* Rodape: Link + Data */}
+          <View style={styles.TestemunhoFooter}>
+            {testemunho.pedido_vinculado_id ? (
+              <TouchableOpacity
+                style={styles.footerItem}
+                onPress={() => navigation.navigate('PedidoDetalhes', { pedidoId: testemunho.pedido_vinculado_id })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.footerIconBg}>
+                  <Ionicons name="link" size={16} color="#3B82F6" />
+                </View>
+                <View style={styles.footerTextCol}>
+                  <Text style={styles.footerLabel}>Acesse</Text>
+                  <Text style={styles.footerValue}>Testemunho Original</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.footerItem}>
+                <View style={styles.footerIconBg}>
+                  <Ionicons name="link" size={16} color="#3B82F6" />
+                </View>
+                <View style={styles.footerTextCol}>
+                  <Text style={styles.footerLabel}>Acesse</Text>
+                  <Text style={styles.footerValue}>Testemunho Original</Text>
+                </View>
+              </View>
+            )}
+            <View style={styles.footerItem}>
+              <View style={styles.footerIconBg}>
+                <Ionicons name="time-outline" size={16} color="#3B82F6" />
+              </View>
+              <View style={styles.footerTextCol}>
+                <Text style={styles.footerLabel}>Enviado em</Text>
+                <Text style={styles.footerValue}>{getDataFormatada(testemunho.criadoEm)}</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* Card Unificado: Banner Verde + Estatisticas */}
@@ -459,12 +510,32 @@ const styles = StyleSheet.create({
   linkTestemunhoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF4FF', alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, marginTop: 12 },
   linkTestemunhoText: { fontFamily: 'Inter', fontSize: 12, fontWeight: '600', color: '#3B82F6' },
 
-  // --- Cartao do Testemunho ---
-  testemunhoCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
-  testemunhoHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  testemunhoHeaderTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  testemunhoHeader: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#1E293B' },
-  testemunhoBody: { fontFamily: 'Inter', fontSize: 16, fontWeight: '400', color: '#1E293B', lineHeight: 24 },
+  // --- Cartao do Testemunho (Estilo Refinado) ---
+  TestemunhoCardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 16,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 },
+      android: { elevation: 2 },
+    }),
+  },
+  TestemunhoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+  TestemunhoHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconPrimaryBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#EEF4FF', justifyContent: 'center', alignItems: 'center' },
+  TestemunhoTitleContainer: { flexDirection: 'column', justifyContent: 'center' },
+  TestemunhoTitle: { fontFamily: 'Inter', fontSize: 18, fontWeight: '700', color: '#1E293B' },
+  TestemunhoUnderline: { width: 24, height: 3, backgroundColor: '#3B82F6', borderRadius: 2, marginTop: 4 },
+  iconAlertBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' },
+  TestemunhoBodyText: { fontFamily: 'Inter', fontSize: 16, fontWeight: '400', color: '#334155', lineHeight: 28 },
+  TestemunhoDivider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 24 },
+  TestemunhoFooter: { flexDirection: 'row', justifyContent: 'flex-start', gap: 32 },
+  footerItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  footerIconBg: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EEF4FF', justifyContent: 'center', alignItems: 'center' },
+  footerTextCol: { flexDirection: 'column' },
+  footerLabel: { fontFamily: 'Inter', fontSize: 12, fontWeight: '500', color: '#64748B', marginBottom: 2 },
+  footerValue: { fontFamily: 'Inter', fontSize: 14, fontWeight: '600', color: '#1E293B' },
 
   // --- Card Unificado (Banner Verde + Estatisticas) ---
   unifiedActionCard: {
