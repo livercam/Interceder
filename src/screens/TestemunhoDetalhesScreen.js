@@ -234,28 +234,28 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
           </View>
           {testemunho.pedido_vinculado_id && (
             <TouchableOpacity
-              style={styles.linkPedidoBtn}
+              style={styles.linkTestemunhoBtn}
               onPress={() => navigation.navigate('PedidoDetalhes', { pedidoId: testemunho.pedido_vinculado_id })}
               activeOpacity={0.7}
             >
               <Ionicons name="link" size={14} color="#3B82F6" style={{ marginRight: 6 }} />
-              <Text style={styles.linkPedidoText}>Ver pedido original</Text>
+              <Text style={styles.linkTestemunhoText}>Ver pedido original</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Cartao do Pedido de Oracao */}
-        <View style={styles.pedidoCard}>
-          <View style={styles.pedidoHeaderRow}>
-            <View style={styles.pedidoHeaderTitleRow}>
+        {/* Cartao do Testemunho de Oracao */}
+        <View style={styles.testemunhoCard}>
+          <View style={styles.testemunhoHeaderRow}>
+            <View style={styles.testemunhoHeaderTitleRow}>
               <Ionicons name="hand-left" size={22} color="#3B82F6" style={{ marginRight: 10 }} />
-              <Text style={styles.pedidoHeader}>Pedido de oracao</Text>
+              <Text style={styles.testemunhoHeader}>Testemunho</Text>
             </View>
             <TouchableOpacity onPress={handleDenunciar} activeOpacity={0.7}>
               <Ionicons name="flag-outline" size={20} color="#94A3B8" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.pedidoBody}>{testemunho.texto}</Text>
+          <Text style={styles.testemunhoBody}>{testemunho.texto}</Text>
         </View>
 
         {/* Card Unificado: Banner Verde + Estatisticas */}
@@ -456,15 +456,15 @@ const styles = StyleSheet.create({
   autorInfo: { flex: 1 },
   autorNome: { fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: '#1E293B' },
   autorData: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#94A3B8', marginTop: 2 },
-  linkPedidoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF4FF', alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, marginTop: 12 },
-  linkPedidoText: { fontFamily: 'Inter', fontSize: 12, fontWeight: '600', color: '#3B82F6' },
+  linkTestemunhoBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF4FF', alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, marginTop: 12 },
+  linkTestemunhoText: { fontFamily: 'Inter', fontSize: 12, fontWeight: '600', color: '#3B82F6' },
 
-  // --- Cartao do Pedido ---
-  pedidoCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
-  pedidoHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  pedidoHeaderTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  pedidoHeader: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#1E293B' },
-  pedidoBody: { fontFamily: 'Inter', fontSize: 16, fontWeight: '400', color: '#1E293B', lineHeight: 24 },
+  // --- Cartao do Testemunho ---
+  testemunhoCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
+  testemunhoHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  testemunhoHeaderTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  testemunhoHeader: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#1E293B' },
+  testemunhoBody: { fontFamily: 'Inter', fontSize: 16, fontWeight: '400', color: '#1E293B', lineHeight: 24 },
 
   // --- Card Unificado (Banner Verde + Estatisticas) ---
   unifiedActionCard: {
