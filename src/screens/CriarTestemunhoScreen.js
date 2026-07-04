@@ -11,12 +11,15 @@ import {
   Platform,
   Alert,
   Image,
+  Modal,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
-import { adicionarTestemunho } from '../services/firestoreService';
+import { adicionarTestemunho, buscarMeusPedidos } from '../services/firestoreService';
 import ActionHeader from '../components/ActionHeader';
 import MediaToolbar from '../components/MediaToolbar';
 import GravadorAudio from '../components/GravadorAudio';
@@ -33,13 +36,29 @@ const MAX_CHARS = 1500;
 export default function CriarTestemunhoScreen({ navigation, route }) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const pedidoVinculado = route?.params?.pedidoVinculado || null;
+  const [pedidoSelecionado, setPedidoSelecionado] = useState(route?.params?.pedidoSelecionado || null);
 
   const [texto, setTexto] = useState('');
   const [publicando, setPublicando] = useState(false);
   const [imagemUri, setImagemUri] = useState(null);
   const [mostrarGravador, setMostrarGravador] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [mostrarSeletorPedidos, setMostrarSeletorPedidos] = useState(false);
+  const [meusPedidos, setMeusPedidos] = useState([]);
+  const [carregandoPedidos, setCarregandoPedidos] = useState(false);
+
+  const carregarPedidos = useCallback(async () => {
+    if (!user) return;
+    setCarregandoPedidos(true);
+    try {
+      const lista = await buscarMeusPedidos(user.uid);
+      setMeusPedidos(lista);
+    } catch (e) {
+      console.warn(e.message);
+    } finally {
+      setCarregandoPedidos(false);
+    }
+  }, [user]);
 
   const podePublicar = texto.trim().length >= 3 && !publicando;
 
@@ -69,8 +88,8 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
       await adicionarTestemunho(
         userData,
         texto.trim(),
-        pedidoVinculado?.id || null,
-        pedidoVinculado?.categoria || null,
+        pedidoSelecionado?.id || null,
+        pedidoSelecionado?.categoria || null,
         imagemFinal,
         audioUrl,
       );
@@ -82,7 +101,7 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
     } finally {
       setPublicando(false);
     }
-  }, [podePublicar, texto, pedidoVinculado, user, navigation, imagemUri, audioUrl]);
+  }, [podePublicar, texto, pedidoSelecionado, user, navigation, imagemUri, audioUrl]);
 
   const handlePickerImagem = useCallback(async () => {
     Alert.alert('Adicionar imagem', 'Escolha:', [
@@ -138,14 +157,14 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
           </Text>
         </View>
 
-        {pedidoVinculado && (
+        {pedidoSelecionado && (
           <TouchableOpacity style={styles.vincularCard} activeOpacity={0.7}>
             <View style={styles.vincularLeft}>
               <Ionicons name="link-outline" size={20} color={GREEN} />
               <View style={styles.vincularInfo}>
                 <Text style={styles.vincularTitle}>Vincular a um pedido respondido</Text>
                 <Text style={styles.vincularSubtitle}>
-                  {pedidoVinculado.texto?.substring(0, 60)}...
+                  {pedidoSelecionado.texto?.substring(0, 60)}...
                 </Text>
               </View>
             </View>
@@ -153,12 +172,12 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
 
-        {!pedidoVinculado && (
+        {!pedidoSelecionado && (
           <TouchableOpacity
             style={styles.vincularCard}
             activeOpacity={0.7}
             onPress={() => {
-              Alert.alert('Vincular Pedido', 'Em breve você poderá selecionar um pedido.');
+              carregarPedidos(); setMostrarSeletorPedidos(true);
             }}
           >
             <View style={styles.vincularLeft}>
@@ -232,6 +251,48 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <Modal visible={mostrarSeletorPedidos} transparent animationType="slide" onRequestClose={() => setMostrarSeletorPedidos(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecionar pedido</Text>
+              <TouchableOpacity onPress={() => setMostrarSeletorPedidos(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            {carregandoPedidos ? (
+              <ActivityIndicator size="large" color={PRIMARY} style={{marginVertical: 40}} />
+            ) : meusPedidos.length === 0 ? (
+              <View style={{padding: 24, alignItems: 'center'}}>
+                <Text style={{fontSize: 16, color: '#94A3B8', textAlign: 'center'}}>
+                  Nenhum pedido ativo encontrado. Crie um pedido no Mural primeiro.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={meusPedidos}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.pedidoOption}
+                    onPress={() => { setPedidoSelecionado(item); setMostrarSeletorPedidos(false); }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="link-outline" size={20} color={GREEN} />
+                    <View style={{flex: 1, marginLeft: 12}}>
+                      <Text style={styles.pedidoOptionText} numberOfLines={2}>{item.texto}</Text>
+                      <Text style={styles.pedidoOptionCat}>{item.categoria}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+                style={{maxHeight: 400}}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -265,4 +326,11 @@ const styles = StyleSheet.create({
   privacidadeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   privacidadeText: { fontSize: 13, color: TEXT_SECONDARY, flex: 1 },
   audioContainer: { marginBottom: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B' },
+  pedidoOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 8, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  pedidoOptionText: { fontSize: 14, color: '#1E293B', fontWeight: '500', lineHeight: 20 },
+  pedidoOptionCat: { fontSize: 12, color: '#94A3B8', marginTop: 4 },
 });
