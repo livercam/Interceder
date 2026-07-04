@@ -495,10 +495,10 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 // Estilos — Design "Detalhes do Pedido"
 // ============================================================
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F6F8FC' },
+  container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 8, paddingBottom: 100 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F6F8FC' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
   errorText: { fontSize: 18, color: '#94A3B8', marginBottom: 16, fontFamily: 'Inter' },
   voltarBtn: { backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   voltarBtnText: { color: '#FFFFFF', fontWeight: '600', fontFamily: 'Inter' },
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
   replyBarNome: { fontWeight: 'bold', color: '#3B82F6' },
   replyBarClose: { padding: 4 },
   replyBarCloseText: { fontSize: 14, color: '#94A3B8', fontWeight: 'bold' },
-  inputField: { flex: 1, backgroundColor: '#F6F8FC', borderRadius: 24, minHeight: 48, paddingHorizontal: 20, fontFamily: 'Inter', fontSize: 16, color: '#1E293B', marginRight: 12 },
+  inputField: { flex: 1, backgroundColor: COLORS.background, borderRadius: 24, minHeight: 48, paddingHorizontal: 20, fontFamily: 'Inter', fontSize: 16, color: '#1E293B', marginRight: 12 },
   inputFieldActive: { minHeight: 80 },
   sendButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   enviarBtnDisabled: { opacity: 0.5 },
