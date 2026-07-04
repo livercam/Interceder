@@ -343,16 +343,11 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Cartao de Mensagens de Apoio */}
-        <View style={styles.comentarioCard}>
-          <View style={styles.comentarioCardRow}>
-            <View style={styles.comentarioHeaderRow}>
-              <Ionicons name="chatbubble-ellipses" size={22} color="#3B82F6" style={{ marginRight: 10 }} />
-              <Text style={styles.comentarioHeader}>Mensagens de apoio</Text>
-            </View>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.comentarioFilterText}>Mais recentes ▼</Text>
-            </TouchableOpacity>
+        {/* Mensagens de Apoio */}
+        <View style={styles.mensagensSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="chatbubble-ellipses" size={20} color="#1E293B" />
+            <Text style={styles.sectionTitle}>Deixe uma Mensagem</Text>
           </View>
           {mensagens.length === 0 ? (
             <View style={styles.emptyState}>
@@ -409,7 +404,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Bottom Input Bar */}
+      {/* Bottom Input Bar - estilo PedidoDetalhes */}
       {user ? (
         <View style={[styles.bottomInputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           {replyingTo && (
@@ -422,26 +417,18 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           )}
-          <View style={styles.inputRow}>
-            <View style={styles.inputWrapper}>
-              <TouchableOpacity style={styles.inputIcon} activeOpacity={0.6}>
-                <Ionicons name="mic-outline" size={20} color="#CBD5E1" />
-              </TouchableOpacity>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder={replyingTo ? `Responder a ${formatarNomeCurto(replyingTo.autor)}...` : 'Escreva uma mensagem de parabens...'}
-                placeholderTextColor="#CBD5E1"
-                value={textoMensagem}
-                onChangeText={setTextoMensagem}
-                multiline
-                maxLength={500}
-                editable={!enviandoMensagem}
-              />
-              <TouchableOpacity style={styles.inputIcon} activeOpacity={0.6}>
-                <Ionicons name="attach-outline" size={20} color="#CBD5E1" />
-              </TouchableOpacity>
-            </View>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TextInput
+              ref={inputRef}
+              style={[styles.inputField, textoMensagem.length > 0 && styles.inputFieldActive]}
+              placeholder={replyingTo ? `Responder a ${formatarNomeCurto(replyingTo.autor)}...` : 'Escreva uma mensagem de parabens...'}
+              placeholderTextColor="#94A3B8"
+              value={textoMensagem}
+              onChangeText={setTextoMensagem}
+              multiline
+              maxLength={500}
+              editable={!enviandoMensagem}
+            />
             <TouchableOpacity
               style={[styles.sendButton, (!textoMensagem.trim() || enviandoMensagem) && styles.enviarBtnDisabled]}
               onPress={handleEnviarMensagem}
@@ -451,7 +438,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
               {enviandoMensagem ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Ionicons name="send" size={18} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                <Ionicons name="send" size={18} color="#FFFFFF" />
               )}
             </TouchableOpacity>
           </View>
@@ -559,12 +546,26 @@ const styles = StyleSheet.create({
   statLabel: { fontFamily: 'Inter', fontSize: 12, fontWeight: '400', color: '#64748B', marginTop: 2 },
   statDivider: { width: 1, height: 32, backgroundColor: '#E2E8F0' },
 
-  // --- Cartao de Mensagens de Apoio ---
-  comentarioCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
-  comentarioCardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  comentarioHeaderRow: { flexDirection: 'row', alignItems: 'center' },
-  comentarioHeader: { fontFamily: 'Inter', fontSize: 20, fontWeight: '700', color: '#1E293B' },
-  comentarioFilterText: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#94A3B8' },
+  // --- Mensagens de Apoio (estilo PedidoDetalhes) ---
+  mensagensSection: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 0,
+    borderRadius: 0,
+    padding: 24,
+    ...SHADOWS.md,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontFamily: 'Inter',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
   emptyState: { alignItems: 'center', paddingVertical: 24 },
   emptyStateEmoji: { fontSize: 40, marginBottom: 8 },
   emptyStateText: { fontFamily: 'Inter', fontSize: 16, color: '#94A3B8', textAlign: 'center' },
@@ -582,17 +583,29 @@ const styles = StyleSheet.create({
   replyIndicator: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3B82F610', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 12, alignSelf: 'flex-start' },
   replyIndicatorText: { fontSize: 12, color: '#3B82F6', fontStyle: 'italic', fontFamily: 'Inter' },
 
-  // --- Bottom Input Bar ---
-  bottomInputBar: { backgroundColor: '#F6F8FC', paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E1E8EE', position: 'absolute', bottom: 0, left: 0, right: 0 },
+  // --- Bottom Input Bar (estilo PedidoDetalhes) ---
+  bottomInputBar: {
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'column',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    ...SHADOWS.md,
+    ...Platform.select({
+      ios: { paddingBottom: 24 },
+      android: { paddingBottom: 12 },
+    }),
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+  },
   replyBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3B82F610', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 8 },
   replyBarText: { flex: 1, fontSize: 12, color: '#475569', fontFamily: 'Inter' },
   replyBarNome: { fontWeight: 'bold', color: '#3B82F6' },
   replyBarClose: { padding: 4 },
   replyBarCloseText: { fontSize: 14, color: '#94A3B8', fontWeight: 'bold' },
-  inputRow: { flexDirection: 'row', alignItems: 'center' },
-  inputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#E6EAED', borderRadius: 999, paddingHorizontal: 12, marginRight: 12, height: 48 },
-  input: { flex: 1, fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#1E293B', height: '100%', paddingVertical: 0 },
-  inputIcon: { padding: 6 },
+  inputField: { flex: 1, backgroundColor: '#F6F8FC', borderRadius: 24, minHeight: 48, paddingHorizontal: 20, fontFamily: 'Inter', fontSize: 16, color: '#1E293B', marginRight: 12 },
+  inputFieldActive: { minHeight: 80 },
   sendButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
   enviarBtnDisabled: { opacity: 0.5 },
   loginParaComentar: { marginHorizontal: 24, marginTop: 16, marginBottom: 24, alignItems: 'center', paddingVertical: 24, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 24, borderWidth: 1, borderColor: '#E2E8F0' },
