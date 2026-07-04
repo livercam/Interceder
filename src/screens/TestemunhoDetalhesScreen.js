@@ -610,8 +610,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: { paddingBottom: 24 },
       android: { paddingBottom: 12 },
-    }),
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+    })
   },
   replyBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3B82F610', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 8 },
   replyBarText: { flex: 1, fontSize: 12, color: '#475569', fontFamily: 'Inter' },
