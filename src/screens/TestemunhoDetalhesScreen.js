@@ -468,7 +468,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F6F8FC' },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 8, paddingBottom: 100 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F6F8FC' },
   errorText: { fontSize: 18, color: '#94A3B8', marginBottom: 16, fontFamily: 'Inter' },
   voltarBtn: { backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
