@@ -215,24 +215,27 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Cartao do Autor */}
-        <View style={styles.autorCard}>
-          <View style={styles.autorHeader}>
-            {testemunho.autor_foto_url ? (
-              <TouchableOpacity onPress={() => testemunho.autor_id && navigation.navigate('PublicProfile', { userId: testemunho.autor_id })} activeOpacity={0.7}>
-                <Image source={{ uri: testemunho.autor_foto_url }} style={styles.avatarImage} />
+        {/* Cabecalho do Autor (igual PedidoDetalhes) */}
+        <View style={styles.autorSection}>
+          <View style={styles.autorRow}>
+            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+              {testemunho.autor_foto_url ? (
+                <TouchableOpacity onPress={() => { if (testemunho.autor_id) navigation.navigate('PublicProfile', { userId: testemunho.autor_id }); }} activeOpacity={0.7}>
+                  <Image source={{ uri: testemunho.autor_foto_url }} style={styles.autorAvatarFoto} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.autorAvatar} onPress={() => { if (testemunho.autor_id) navigation.navigate('PublicProfile', { userId: testemunho.autor_id }); }} activeOpacity={0.7}>
+                  <Text style={styles.autorAvatarText}>{testemunho.autor_nome?.charAt(0)?.toUpperCase() || '?'}</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.autorInfo} onPress={() => { if (testemunho.autor_id) navigation.navigate('PublicProfile', { userId: testemunho.autor_id }); }} activeOpacity={0.7}>
+                <View style={styles.autorNomeRow}>
+                  <Text style={styles.autorNome}>{formatarNomeCurto(testemunho.autor_nome)}</Text>
+                </View>
+                <Text style={styles.autorData}>{getDataFormatada(testemunho.criadoEm)}</Text>
               </TouchableOpacity>
-            ) : (
-              <View style={styles.avatarCirculo}>
-                <Text style={styles.avatarTexto}>{testemunho.autor_nome?.charAt(0)?.toUpperCase() || '?'}</Text>
-              </View>
-            )}
-            <View style={styles.autorInfo}>
-              <Text style={styles.autorNome}>{formatarNomeCurto(testemunho.autor_nome)}</Text>
-              <Text style={styles.autorData}>{getDataFormatada(testemunho.criadoEm)}</Text>
             </View>
           </View>
-          {/* Link movido para o rodape do card de testemunho */}
         </View>
 
         {/* Cartao do Testemunho (Estilo Refinado) */}
@@ -462,11 +465,6 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 // ============================================================
 // Estilos — Design "Detalhes do Pedido"
 // ============================================================
-const CARD_SHADOW = Platform.select({
-  ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4 },
-  android: { elevation: 2 },
-});
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F6F8FC' },
   scrollView: { flex: 1 },
@@ -476,15 +474,23 @@ const styles = StyleSheet.create({
   voltarBtn: { backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   voltarBtnText: { color: '#FFFFFF', fontWeight: '600', fontFamily: 'Inter' },
 
-  // --- Cartao do Autor ---
-  autorCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16, ...CARD_SHADOW },
-  autorHeader: { flexDirection: 'row', alignItems: 'center' },
-  avatarCirculo: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  avatarImage: { width: 48, height: 48, borderRadius: 24, marginRight: 12 },
-  avatarTexto: { fontFamily: 'Inter', fontSize: 20, fontWeight: '600', color: '#FFFFFF' },
+  // --- Cabecalho do Autor (igual PedidoDetalhes) ---
+  autorSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    ...SHADOWS.md,
+    marginBottom: 16,
+  },
+  autorRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
+  autorAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#C96A5E', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  autorAvatarFoto: { width: 64, height: 64, borderRadius: 32, marginRight: 16 },
+  autorAvatarText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
   autorInfo: { flex: 1 },
-  autorNome: { fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: '#1E293B' },
-  autorData: { fontFamily: 'Inter', fontSize: 14, fontWeight: '400', color: '#94A3B8', marginTop: 2 },
+  autorNomeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  autorNome: { fontSize: 18, fontFamily: 'Inter', fontWeight: '700', color: '#1E293B' },
+  autorData: { fontSize: 14, color: '#94A3B8', marginTop: 2 },
 
 
   // --- Cartao do Testemunho (igual pedidoContainer do PedidoDetalhes) ---
