@@ -22,6 +22,7 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { collection, getCountFromServer, query } from 'firebase/firestore';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -32,6 +33,7 @@ import {
   listarPedidos,
   listarCelulas,
   denunciarPedido,
+  toggleSalvarPedido,
 } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
 import { formatarNomeCurto } from '../utils/formatters';
@@ -88,6 +90,7 @@ const getTempoRelativo = (timestamp) => {
 // ============================================================
 const PedidoCard = React.memo(function PedidoCard({ pedido, onDenunciar }) {
   const navigation = useNavigation();
+  const { user, userProfile } = useAuth();
   const longPressTimer = useRef(null);
   const isRespondido = pedido.status === 'respondido';
 
@@ -100,6 +103,21 @@ const PedidoCard = React.memo(function PedidoCard({ pedido, onDenunciar }) {
       }
     } else {
       navigation.navigate('PedidoDetalhes', { pedidoId: pedido.id });
+    }
+  };
+
+  const jaSalvo = userProfile?.pedidos_salvos?.includes(pedido.id) || false;
+
+  const handleSalvarPedido = async () => {
+    if (!user) { Alert.alert('Aviso', 'Faça login para salvar pedidos.'); return; }
+    const acao = jaSalvo ? 'remover' : 'salvar';
+    try {
+      await toggleSalvarPedido(user.uid, pedido.id, acao);
+      if (acao === 'salvar') {
+        Alert.alert('📌 Pedido salvo!', 'Pedido salvo na sua lista de oração. Acesse seu Perfil');
+      }
+    } catch (e) {
+      Alert.alert('Erro', e.message);
     }
   };
 
@@ -166,6 +184,17 @@ const PedidoCard = React.memo(function PedidoCard({ pedido, onDenunciar }) {
           <View style={styles.badgeRespondido}>
             <Text style={styles.badgeRespondidoText}>🎉 ORAÇÃO RESPONDIDA</Text>
           </View>
+        )}
+
+        {!isRespondido && (
+          <TouchableOpacity
+            onPress={handleSalvarPedido}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.salvarBtn}
+          >
+            <Ionicons name={jaSalvo ? "bookmark" : "bookmark-outline"} size={22} color={jaSalvo ? "#A53F36" : "#64748B"} />
+          </TouchableOpacity>
         )}
       </View>
 
@@ -1181,6 +1210,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.xs,
   },
+  salvarBtn: { padding: 4, marginLeft: 8 },
   semCelulasMsgHint: {
     fontSize: FONTS.sizes.xs,
     color: COLORS.gray400,

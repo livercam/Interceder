@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { ouvirNotificacoesNaoLidas } from '../services/firestoreService';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 
 export default function NotificationIcon() {
@@ -52,7 +53,7 @@ export default function NotificationIcon() {
       activeOpacity={0.7}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
-      <Text style={styles.sinoIcon}>🔔</Text>
+      <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
       {naoLidas > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>

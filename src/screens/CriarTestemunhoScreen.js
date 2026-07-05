@@ -34,7 +34,7 @@ const BORDER = '#E2E8F0';
 const MAX_CHARS = 1500;
 
 export default function CriarTestemunhoScreen({ navigation, route }) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const [pedidoSelecionado, setPedidoSelecionado] = useState(route?.params?.pedidoSelecionado || null);
 
@@ -83,7 +83,7 @@ export default function CriarTestemunhoScreen({ navigation, route }) {
         nome: user.displayName || 'Irmão(ã)',
         displayName: user.displayName || 'Irmão(ã)',
         photoURL: user.photoURL || null,
-        cargo: 'membro',
+        cargo: userProfile?.titulo_ministerial || 'membro',
       };
       await adicionarTestemunho(
         userData,

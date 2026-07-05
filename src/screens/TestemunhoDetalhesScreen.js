@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import {
   getTestemunho,
+  getUserProfile,
   celebrarTestemunho,
   listarMensagensApoioTestemunho,
   adicionarMensagemApoioTestemunho,
@@ -100,6 +101,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 
   const [testemunho, setTestemunho] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [autorProfile, setAutorProfile] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [textoMensagem, setTextoMensagem] = useState('');
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
@@ -115,6 +117,9 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
       try {
         const dados = await getTestemunho(testemunhoId);
         setTestemunho(dados);
+        if (dados?.autor_id) {
+          try { const p = await getUserProfile(dados.autor_id); setAutorProfile(p); } catch(e) {}
+        }
       } catch (error) {
         Alert.alert('Erro', 'Nao foi possivel carregar o testemunho.');
         navigation.goBack();
@@ -229,40 +234,31 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
         ref={scrollViewRef}
         onContentSizeChange={() => {}}
       >
-        {/* Cabecalho do Autor (igual PedidoDetalhes) */}
-        <View style={styles.autorSection}>
-          <View style={styles.autorRow}>
-            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-              {testemunho.autor_foto_url ? (
-                <TouchableOpacity onPress={() => { if (testemunho.autor_id) navigation.navigate('PublicProfile', { userId: testemunho.autor_id }); }} activeOpacity={0.7}>
-                  <Image source={{ uri: testemunho.autor_foto_url }} style={styles.autorAvatarFoto} />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.autorAvatar} onPress={() => { if (testemunho.autor_id) navigation.navigate('PublicProfile', { userId: testemunho.autor_id }); }} activeOpacity={0.7}>
-                  <Text style={styles.autorAvatarText}>{testemunho.autor_nome?.charAt(0)?.toUpperCase() || '?'}</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.autorInfo} onPress={() => { if (testemunho.autor_id) navigation.navigate('PublicProfile', { userId: testemunho.autor_id }); }} activeOpacity={0.7}>
-                <View style={styles.autorNomeRow}>
-                  <Text style={styles.autorNome}>{formatarNomeCurto(testemunho.autor_nome)}</Text>
-                </View>
-                <Text style={styles.autorData}>{getDataFormatada(testemunho.criadoEm)}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Cartao do Testemunho (Estilo Refinado) */}
+                {/* Cartao do Testemunho (Estilo Refinado) */}
         <View style={styles.TestemunhoCardContainer}>
-          {/* Cabecalho */}
+          {/* Cabecalho com Autor */}
           <View style={styles.TestemunhoHeader}>
             <View style={styles.TestemunhoHeaderLeft}>
-              <View style={styles.iconPrimaryBg}>
-                <Ionicons name="hand-left" size={22} color="#3B82F6" />
-              </View>
-              <View style={styles.TestemunhoTitleContainer}>
-                <Text style={styles.TestemunhoTitle}>Testemunho</Text>
-                <View style={styles.TestemunhoUnderline} />
+              {testemunho.autor_foto_url ? (
+                <TouchableOpacity onPress={() => { if (testemunho.autor_id) navigation.navigate("PublicProfile", { userId: testemunho.autor_id }); }} activeOpacity={0.7}>
+                  <Image source={{ uri: testemunho.autor_foto_url }} style={{width:44,height:44,borderRadius:22,marginRight:12}} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => { if (testemunho.autor_id) navigation.navigate("PublicProfile", { userId: testemunho.autor_id }); }} activeOpacity={0.7} style={{width:44,height:44,borderRadius:22,backgroundColor:"#C96A5E",justifyContent:"center",alignItems:"center",marginRight:12}}>
+                  <Text style={{color:"#FFF",fontSize:18,fontWeight:"bold"}}>{testemunho.autor_nome?.charAt(0)?.toUpperCase() || "?"}</Text>
+                </TouchableOpacity>
+              )}
+              <View style={{flexDirection:"column"}}>
+                <Text style={{fontSize:16,fontWeight:"700",color:"#1E293B"}}>{formatarNomeCurto(testemunho.autor_nome)}</Text>
+                <Text style={{fontSize:13,color:"#64748B",marginTop:2}}>
+                  {(autorProfile?.titulo_ministerial || testemunho.autor_cargo) && (autorProfile?.titulo_ministerial || testemunho.autor_cargo).toLowerCase() !== "membro"
+                    ? ((autorProfile?.titulo_ministerial || testemunho.autor_cargo) === "diacono" ? "Diácono" :
+                       (autorProfile?.titulo_ministerial || testemunho.autor_cargo) === "missionario" ? "Missionário" :
+                       (autorProfile?.titulo_ministerial || testemunho.autor_cargo) === "evangelista" ? "Evangelista" :
+                       (autorProfile?.titulo_ministerial || testemunho.autor_cargo) === "presbitero" ? "Presbítero" :
+                       (autorProfile?.titulo_ministerial || testemunho.autor_cargo) === "pastor" ? "Pastor" : (autorProfile?.titulo_ministerial || testemunho.autor_cargo))
+                    : "Membro"}
+                </Text>
               </View>
             </View>
             <TouchableOpacity onPress={handleDenunciar} activeOpacity={0.7}>
@@ -389,7 +385,7 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
                         <View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <Text style={styles.authorName}>{formatarNomeCurto(msg.autor_nome)}</Text>
-                            {ehAutor && <Ionicons name="crown" size={14} color="#3B82F6" />}
+                            {ehAutor && <Ionicons name="shield-checkmark" size={14} color="#3B82F6" />}
                           </View>
                           <Text style={styles.timeAgo}>{getTempoRelativo(msg.criadoEm)}</Text>
                         </View>
@@ -508,9 +504,9 @@ export default function TestemunhoDetalhesScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 8, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 8, paddingTop: 16, paddingBottom: 100 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
-  errorText: { fontSize: 18, color: '#94A3B8', marginBottom: 16, fontFamily: 'Inter' },
+  errorText: { fontSize: 18, color: '#94A3B8',  fontFamily: 'Inter' },
   voltarBtn: { backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   voltarBtnText: { color: '#FFFFFF', fontWeight: '600', fontFamily: 'Inter' },
 
@@ -521,7 +517,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     ...SHADOWS.md,
-    marginBottom: 16,
+    
   },
   autorRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 },
   autorAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#C96A5E', justifyContent: 'center', alignItems: 'center', marginRight: 16 },

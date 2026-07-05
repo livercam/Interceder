@@ -39,7 +39,7 @@ var CATEGORIAS = [
 var MAX_CHARS = 1000;
 
 export default function CriarPedidoScreen({ navigation }) {
-  var { user } = useAuth();
+  var { user, userProfile } = useAuth();
   var insets = useSafeAreaInsets();
   var [texto, setTexto] = useState("");
   var [categoria, setCategoria] = useState("saude");
@@ -68,7 +68,7 @@ export default function CriarPedidoScreen({ navigation }) {
       var imagemFinal = imagemUri ? await uploadImagem(imagemUri, user, "pedidos") : null;
       await criarPedido(
         texto.trim(), categoria, "publico", [],
-        { uid: user.uid, nome: user.displayName || "Anônimo" },
+        { uid: user.uid, nome: user.displayName || "Anônimo", cargo: userProfile?.titulo_ministerial || "membro" },
         user.photoURL || null,
         imagemFinal,
         audioUrl,
