@@ -3,9 +3,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
-export default function CategoryBar({ categorias, filtroCategoria, onChangeFiltro }) {
+export default function CategoryBar({ categorias, filtroCategoria, onChangeFiltro, style }) {
   return (
-    <View style={styles.filtrosContainer}>
+    <View style={[styles.filtrosContainer, style]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

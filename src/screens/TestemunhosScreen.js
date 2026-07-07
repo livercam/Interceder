@@ -266,19 +266,14 @@ export default function TestemunhosScreen() {
   const keyExtractor = useCallback((item) => item.id, []);
 
   // Renderizar cada cartão (memoizado)
-  // Header da FlatList (banner + filtros)
+  // Header da FlatList (apenas banner)
   const renderHeader = useCallback(
     () => (
       <View>
         <BannerAd telaAtual="testemunhos" />
-        <CategoryBar
-          categorias={categorias}
-          filtroCategoria={filtroCategoria}
-          onChangeFiltro={setFiltroCategoria}
-        />
       </View>
     ),
-    [categorias, filtroCategoria]
+    []
   );
 
   const renderTestemunho = useCallback(
@@ -290,6 +285,12 @@ export default function TestemunhosScreen() {
   if (!loading && testemunhosFiltrados.length === 0) {
     return (
       <View style={styles.container}>
+        <CategoryBar
+          categorias={categorias}
+          filtroCategoria={filtroCategoria}
+          onChangeFiltro={setFiltroCategoria}
+          style={{ marginBottom: 16 }}
+        />
         {renderHeader()}
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>🕊️</Text>
@@ -321,14 +322,21 @@ export default function TestemunhosScreen() {
           <Text style={styles.loadingText}>Carregando testemunhos...</Text>
         </View>
       ) : (
-        <FlatList
-          data={testemunhosFiltrados}
-          renderItem={renderTestemunho}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={renderHeader}
-          removeClippedSubviews={Platform.OS === 'android'}
+        <>
+          <CategoryBar
+            categorias={categorias}
+            filtroCategoria={filtroCategoria}
+            onChangeFiltro={setFiltroCategoria}
+            style={{ marginBottom: 16 }}
+          />
+          <FlatList
+            data={testemunhosFiltrados}
+            renderItem={renderTestemunho}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={renderHeader}
+            removeClippedSubviews={Platform.OS === 'android'}
           maxToRenderPerBatch={10}
           windowSize={7}
           initialNumToRender={8}
@@ -339,7 +347,7 @@ export default function TestemunhosScreen() {
             </View>
           }
         />
-      )}
+      </>)}
 
       {/* FAB - apenas para utilizadores logados */}
       {user && (
