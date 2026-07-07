@@ -289,7 +289,6 @@ export default function TestemunhosScreen() {
           categorias={categorias}
           filtroCategoria={filtroCategoria}
           onChangeFiltro={setFiltroCategoria}
-          style={{ marginBottom: 16 }}
         />
         {renderHeader()}
         <View style={styles.emptyState}>
@@ -327,13 +326,13 @@ export default function TestemunhosScreen() {
             categorias={categorias}
             filtroCategoria={filtroCategoria}
             onChangeFiltro={setFiltroCategoria}
-            style={{ marginBottom: 16 }}
           />
           <FlatList
+            style={styles.feedList}
             data={testemunhosFiltrados}
             renderItem={renderTestemunho}
             keyExtractor={keyExtractor}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={styles.feedContent}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={renderHeader}
             removeClippedSubviews={Platform.OS === 'android'}
@@ -386,8 +385,13 @@ const styles = StyleSheet.create({
   },
 
   // Lista
-  listContent: {
-    padding: SPACING.md,
+  feedList: {
+    flex: 1,
+    marginTop: 0,
+  },
+  feedContent: {
+    paddingTop: 16,
+    paddingHorizontal: SPACING.md,
     paddingBottom: 100,
   },
 
