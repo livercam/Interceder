@@ -31,9 +31,13 @@ import {
   listarTestemunhos,
   buscarMeusPedidos,
 } from '../services/firestoreService';
+import { CATEGORIAS_PEDIDO } from '../constants/firestore';
+import BannerAd from '../components/BannerAd';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { formatarNomeCurto } from '../utils/formatters';
+import { listarCategorias } from '../services/categoriaService';
+import CategoryBar from '../components/CategoryBar';
 
 // ============================================================
 // Utilitários (clone do MuralScreen)
@@ -202,6 +206,8 @@ export default function TestemunhosScreen() {
   const navigation = useNavigation();
   const [testemunhos, setTestemunhos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filtroCategoria, setFiltroCategoria] = useState(null);
+  const [categorias, setCategorias] = useState(CATEGORIAS_PEDIDO);
   const { user, userProfile } = useAuth();
   const cargoAtual = userProfile?.titulo_ministerial || 'membro';
   const isPremiumAtual = userProfile?.isPremium === true || false;
@@ -231,6 +237,14 @@ export default function TestemunhosScreen() {
     if (testemunhos.length > 0) carregarContagens(testemunhos);
   }, [testemunhos.length]);
 
+  // Escutar categorias do Firestore (com fallback para fixas)
+  useEffect(() => {
+    const unsub = listarCategorias((categoriasAtualizadas) => {
+      setCategorias(categoriasAtualizadas);
+    });
+    return () => unsub();
+  }, []);
+
   // Escutar testemunhos em tempo real
   useEffect(() => {
     const unsubscribe = listarTestemunhos((testemunhosAtualizados) => {
@@ -242,18 +256,41 @@ export default function TestemunhosScreen() {
   }, []);
 
   // keyExtractor estável
+  // Filtrar por categoria (memoizado)
+  const testemunhosFiltrados = useMemo(() => {
+    return filtroCategoria
+      ? testemunhos.filter((t) => t.pedido_vinculado_categoria === filtroCategoria)
+      : testemunhos;
+  }, [testemunhos, filtroCategoria]);
+
   const keyExtractor = useCallback((item) => item.id, []);
 
   // Renderizar cada cartão (memoizado)
+  // Header da FlatList (banner + filtros)
+  const renderHeader = useCallback(
+    () => (
+      <View>
+        <BannerAd telaAtual="testemunhos" />
+        <CategoryBar
+          categorias={categorias}
+          filtroCategoria={filtroCategoria}
+          onChangeFiltro={setFiltroCategoria}
+        />
+      </View>
+    ),
+    [categorias, filtroCategoria]
+  );
+
   const renderTestemunho = useCallback(
     ({ item }) => <TestemunhoCard testemunho={{ ...item, mensagens_count: contagensMensagens[item.id] ?? 0 }} />,
     [contagensMensagens]
   );
 
   // Estado vazio
-  if (!loading && testemunhos.length === 0) {
+  if (!loading && testemunhosFiltrados.length === 0) {
     return (
       <View style={styles.container}>
+        {renderHeader()}
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>🕊️</Text>
           <Text style={styles.emptyTitle}>Nenhum testemunho ainda</Text>
@@ -285,11 +322,12 @@ export default function TestemunhosScreen() {
         </View>
       ) : (
         <FlatList
-          data={testemunhos}
+          data={testemunhosFiltrados}
           renderItem={renderTestemunho}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderHeader}
           removeClippedSubviews={Platform.OS === 'android'}
           maxToRenderPerBatch={10}
           windowSize={7}

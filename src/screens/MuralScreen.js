@@ -39,6 +39,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { formatarNomeCurto } from '../utils/formatters';
 import { listarCategorias } from '../services/categoriaService';
 import BannerAd from '../components/BannerAd';
+import CategoryBar from '../components/CategoryBar';
 
 // Altura estimada de cada card para getItemLayout (calculada com base no padding + conteúdo)
 const CARD_ESTIMATED_HEIGHT = 220;
@@ -673,52 +674,11 @@ export default function MuralScreen() {
   const renderHeader = () => (
     <View>
       <BannerAd telaAtual="mural" />
-      <View style={styles.filtrosContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtrosScroll}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filtroChip,
-              filtroCategoria === null && styles.filtroChipActive,
-            ]}
-            onPress={() => setFiltroCategoria(null)}
-          >
-            <Text
-              style={[
-                styles.filtroChipText,
-                filtroCategoria === null && styles.filtroChipTextActive,
-              ]}
-            >
-              Todos
-            </Text>
-          </TouchableOpacity>
-
-          {categorias.map((cat) => (
-            <TouchableOpacity
-              key={cat.value}
-              style={[
-                styles.filtroChip,
-                filtroCategoria === cat.value && styles.filtroChipActive,
-              ]}
-              onPress={() =>
-                setFiltroCategoria(filtroCategoria === cat.value ? null : cat.value)
-              }
-            >
-              <Text
-                style={[
-                  styles.filtroChipText,
-                  filtroCategoria === cat.value && styles.filtroChipTextActive,
-                ]}
-              >
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <CategoryBar
+        categorias={categorias}
+        filtroCategoria={filtroCategoria}
+        onChangeFiltro={setFiltroCategoria}
+      />
     </View>
   );
 
@@ -825,35 +785,7 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
   },
 
-  // Filtros
-  filtrosContainer: {
-    backgroundColor: COLORS.white,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray100,
-  },
-  filtrosScroll: {
-    paddingHorizontal: SPACING.md,
-    gap: SPACING.sm,
-  },
-  filtroChip: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.gray100,
-    marginRight: SPACING.sm,
-  },
-  filtroChipActive: {
-    backgroundColor: COLORS.primary,
-  },
-  filtroChipText: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.gray600,
-    fontWeight: '500',
-  },
-  filtroChipTextActive: {
-    color: COLORS.white,
-  },
+
 
   // Lista
   listContent: {
