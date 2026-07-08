@@ -454,6 +454,7 @@ export const editarCelula = async (celulaId, dados) => {
   if (dados.dia_semana !== undefined) atualizacao.dia_semana = dados.dia_semana;
   if (dados.local !== undefined) atualizacao.local = dados.local;
   if (dados.tipo !== undefined) atualizacao.tipo = dados.tipo;
+  if (dados.capa_url !== undefined) atualizacao.capa_url = dados.capa_url;
 
   await updateDoc(doc(db, COLLECTIONS.CELULAS, celulaId), atualizacao);
 };
