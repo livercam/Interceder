@@ -24,12 +24,12 @@ import {
   Animated,
   Linking,
   Share,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import {
-  criarCelula,
   listarCelulas,
   inscreverNaCelula,
   adicionarConteudoEnsino,
@@ -55,180 +55,6 @@ import CardPostagem from '../components/CardPostagem';
 import ModalCriacaoPostagem from '../components/ModalCriacaoPostagem';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// ============================================================
-// Modal de Criação de Célula
-// ============================================================
-function CriarCelulaModal({ visible, onClose, onCriar }) {
-  const insets = useSafeAreaInsets();
-  const [nome, setNome] = useState('');
-  const [horario, setHorario] = useState('');
-  const [descricao, setDescricao] = useState('');
-  const [diaSemana, setDiaSemana] = useState('');
-  const [local, setLocal] = useState('');
-  const [tipo, setTipo] = useState('publica'); // 'publica' ou 'fechada'
-  const [loading, setLoading] = useState(false);
-
-  const handleCriar = async () => {
-    if (!nome.trim() || !horario.trim()) {
-      Alert.alert('Atenção', 'Preencha pelo menos o nome e o horário da célula.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await onCriar(nome.trim(), horario.trim(), {
-        descricao: descricao.trim(),
-        dia_semana: diaSemana.trim(),
-        local: local.trim(),
-        tipo,
-      });
-      setNome('');
-      setHorario('');
-      setDescricao('');
-      setDiaSemana('');
-      setLocal('');
-      setTipo('publica');
-      onClose();
-    } catch (error) {
-      Alert.alert('Erro', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClose = () => {
-    setNome('');
-    setHorario('');
-    setDescricao('');
-    setDiaSemana('');
-    setLocal('');
-    setTipo('publica');
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: SPACING.xxl }}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nova Célula</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nome da Célula *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Célula da Fé"
-                placeholderTextColor={COLORS.gray400}
-                value={nome}
-                onChangeText={setNome}
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Horário *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Quartas às 19h30"
-                placeholderTextColor={COLORS.gray400}
-                value={horario}
-                onChangeText={setHorario}
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Dia da Semana</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Quarta-feira"
-                placeholderTextColor={COLORS.gray400}
-                value={diaSemana}
-                onChangeText={setDiaSemana}
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Local</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Online / Rua das Flores, 123"
-                placeholderTextColor={COLORS.gray400}
-                value={local}
-                onChangeText={setLocal}
-                editable={!loading}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Tipo de Célula *</Text>
-              <View style={styles.tipoSelector}>
-                <TouchableOpacity
-                  style={[styles.tipoOption, tipo === 'publica' && styles.tipoOptionAtivo]}
-                  onPress={() => setTipo('publica')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.tipoOptionIcon, tipo === 'publica' && styles.tipoOptionIconAtivo]}>🌐</Text>
-                  <Text style={[styles.tipoOptionLabel, tipo === 'publica' && styles.tipoOptionLabelAtivo]}>Pública</Text>
-                  <Text style={[styles.tipoOptionDesc, tipo === 'publica' && styles.tipoOptionDescAtivo]}>Entrada livre, sem aprovação</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.tipoOption, tipo === 'fechada' && styles.tipoOptionAtivoFechada]}
-                  onPress={() => setTipo('fechada')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.tipoOptionIcon, tipo === 'fechada' && styles.tipoOptionIconAtivo]}>🔒</Text>
-                  <Text style={[styles.tipoOptionLabel, tipo === 'fechada' && styles.tipoOptionLabelAtivo]}>Fechada</Text>
-                  <Text style={[styles.tipoOptionDesc, tipo === 'fechada' && styles.tipoOptionDescAtivo]}>Requer aprovação do líder</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Descrição</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Descreva o propósito da célula..."
-                placeholderTextColor={COLORS.gray400}
-                value={descricao}
-                onChangeText={setDescricao}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-                editable={!loading}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.criarBtn, loading && styles.criarBtnDisabled]}
-              onPress={handleCriar}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color={COLORS.white} size="small" />
-              ) : (
-                <Text style={styles.criarBtnText}>Criar Célula</Text>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
-    </Modal>
-  );
-}
 
 // ============================================================
 // Modal de Adicionar/Editar Conteúdo de Ensino
@@ -399,11 +225,12 @@ const getIconePorLink = (link) => {
 };
 
 // ============================================================
-// Tela de Detalhes da Célula
+// Tela de Detalhes da Célula (Redesign Moderno)
 // ============================================================
 function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [celula, setCelula] = useState(null);
   const [membros, setMembros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -412,6 +239,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const [modalMembrosVisible, setModalMembrosVisible] = useState(false);
   const [showDenunciaModal, setShowDenunciaModal] = useState(false);
   const [menuKebabVisivel, setMenuKebabVisivel] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState('Posts');
 
   const isLider = celula?.lider_id === userUid;
   const isCoLider = celula?.co_lideres_ids?.includes(userUid);
@@ -441,68 +269,6 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
 
   // Quantidade de solicitações pendentes para o badge
   const qtdSolicitacoes = celula?.solicitacoes_pendentes?.length || 0;
-
-  // KebabMenu no header nativo
-  useLayoutEffect(() => {
-    const opcoesKebab = [];
-
-    // 1ª opção: Solicitações (apenas para quem pode gerenciar)
-    if (podeGerenciar) {
-      opcoesKebab.push({
-        texto: qtdSolicitacoes > 0
-          ? `📋 Solicitações (${qtdSolicitacoes})`
-          : '📋 Solicitações',
-        aoPressionar: () =>
-          navigation.navigate('GerenciarSolicitacoes', {
-            celulaId: celula?.id,
-          }),
-      });
-
-      // 2ª opção: Editar Célula (apenas para quem pode gerenciar)
-      opcoesKebab.push({
-        texto: '✏️ Editar Célula',
-        aoPressionar: () =>
-          navigation.navigate('EditarCelula', {
-            celulaId: celula?.id,
-          }),
-      });
-    }
-
-    // 3ª opção: Sair da Célula
-    opcoesKebab.push({
-      texto: '🚪 Sair da Célula',
-      destrutivo: true,
-      aoPressionar: handleSair,
-    });
-
-    // 4ª opção: Excluir Célula (apenas líder)
-    if (isLider) {
-      opcoesKebab.push({
-        texto: '🗑️ Excluir Célula',
-        destrutivo: true,
-        aoPressionar: handleApagarCelula,
-      });
-    }
-
-    navigation.setOptions({
-      headerRight: () => (
-        <KebabMenu
-          visivel={menuKebabVisivel}
-          aoFechar={() => setMenuKebabVisivel(false)}
-          opcoes={opcoesKebab}
-          badge={podeGerenciar ? qtdSolicitacoes : 0}
-        >
-          <TouchableOpacity
-            onPress={() => setMenuKebabVisivel(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={{ marginRight: 8, padding: 4 }}
-          >
-            <Ionicons name="ellipsis-vertical" size={24} color={COLORS.white} />
-          </TouchableOpacity>
-        </KebabMenu>
-      ),
-    });
-  }, [isLider, podeGerenciar, celula?.id, navigation, menuKebabVisivel, handleApagarCelula, handleSair, qtdSolicitacoes]);
 
   // Escuta a célula em tempo real (onSnapshot)
   useEffect(() => {
@@ -747,210 +513,292 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
     return dataB - dataA; // Decrescente: mais recente primeiro
   });
 
+  // Dados do líder para o avatar
+  const liderData = membros.find((m) => m.uid === celula?.lider_id);
+  const nomeLider = liderData?.nome || user?.displayName || 'Líder';
+  const fotoLider = liderData?.foto_url || liderData?.photoURL || user?.photoURL || null;
+
+  // Debug completo da célula
+  console.log('[CelulaDetalhes] Celula keys:', Object.keys(celula).join(', '));
+  console.log('[CelulaDetalhes] capa_url value:', JSON.stringify(celula.capa_url));
+  console.log('[CelulaDetalhes] celula.id:', celula.id);
+
+  // URL da capa com fallback para múltiplos nomes de campo
+  const capaUrl = celula.capa_url || celula.urlCapaFinal || celula.imagem_url || celula.url_capa || null;
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header da Célula */}
-      <View style={styles.detalhesHeader}>
-        <TouchableOpacity onPress={onVoltar} style={styles.voltarBtn}>
-          <Text style={styles.voltarText}>← Voltar</Text>
-        </TouchableOpacity>
-        <View style={styles.detalhesNomeRow}>
-          <Text style={styles.detalhesNome}>{celula.nome}</Text>
-          <View style={styles.detalhesAcoesRow}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
+      {/* ============================================ */}
+      {/* HERO SECTION - Capa + Header Sobreposto */}
+      {/* ============================================ */}
+      <View style={styles.capaWrapper}>
+        {/* Log de rastreamento */}
+        {console.log('3. [Render] URL recebida na leitura do banco:', JSON.stringify(celula?.capa_url))}
+
+        {/* Renderização defensiva: só exibe Image se capa_url for uma string válida */}
+        {(celula?.capa_url && typeof celula.capa_url === 'string' && celula.capa_url.trim() !== '') ? (
+          <Image
+            source={{ uri: celula.capa_url }}
+            style={[styles.capaImage, { backgroundColor: '#ccc' }]}
+            resizeMode="cover"
+            onError={(e) => console.log('[CelulaDetalhes] Erro ao carregar capa:', e.nativeEvent.error)}
+          />
+        ) : (
+          <View style={[styles.capaPlaceholder, { backgroundColor: '#E2E8F0' }]} />
+        )}
+
+        {/* Header Sobreposto na Capa */}
+        <View style={[styles.capaHeaderOverlay, { top: insets.top + 12 }]}>
+          <TouchableOpacity
+            onPress={onVoltar}
+            style={styles.capaHeaderBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          <KebabMenu
+            visivel={menuKebabVisivel}
+            aoFechar={() => setMenuKebabVisivel(false)}
+            opcoes={(() => {
+              const ops = [];
+              if (podeGerenciar) {
+                ops.push({
+                  texto: qtdSolicitacoes > 0 ? `📋 Solicitações (${qtdSolicitacoes})` : '📋 Solicitações',
+                  aoPressionar: () => navigation.navigate('GerenciarSolicitacoes', { celulaId: celula?.id }),
+                });
+                ops.push({
+                  texto: '✏️ Editar Célula',
+                  aoPressionar: () => navigation.navigate('EditarCelula', { celulaId: celula?.id }),
+                });
+              }
+              ops.push({ texto: '🚪 Sair da Célula', destrutivo: true, aoPressionar: handleSair });
+              if (isLider) {
+                ops.push({ texto: '🗑️ Excluir Célula', destrutivo: true, aoPressionar: handleApagarCelula });
+              }
+              return ops;
+            })()}
+            badge={podeGerenciar ? qtdSolicitacoes : 0}
+          >
             <TouchableOpacity
-              style={styles.conviteBtn}
-              onPress={handleCompartilharConvite}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={() => setMenuKebabVisivel(true)}
+              style={styles.capaHeaderBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={styles.conviteBtnText}>🔗</Text>
+              <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.membrosHeaderBtn}
-              onPress={() => setModalMembrosVisible(true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.membrosHeaderBtnText}>👥</Text>
-            </TouchableOpacity>
+          </KebabMenu>
+        </View>
+      </View>
+
+      {/* ============================================ */}
+      {/* PERFIL - Avatar, Título e Info (Sobrepondo Capa) */}
+      {/* ============================================ */}
+      <View style={styles.perfilContainer}>
+        {/* Avatar Circular */}
+        <View style={styles.avatarWrapper}>
+          {fotoLider ? (
+            <Image source={{ uri: fotoLider }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarPlaceholderText}>
+                {nomeLider?.charAt(0)?.toUpperCase() || '👤'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Bloco de Título e Botão Compartilhar */}
+        <View style={styles.tituloRow}>
+          <View style={styles.tituloInfo}>
+            <Text style={styles.celulaTitulo}>{celula.nome}</Text>
+            <Text style={styles.celulaSubtitle}>
+              {celula.membros_ids?.length || 0} membros
+              {celula.dia_semana || celula.horario
+                ? ` • Encontros: ${celula.dia_semana || ''}${celula.dia_semana && celula.horario ? ' às ' : ''}${celula.horario || ''}`
+                : ''}
+            </Text>
           </View>
+          <TouchableOpacity style={styles.compartilharBtn} onPress={handleCompartilharConvite} activeOpacity={0.7}>
+            <Ionicons name="share-outline" size={16} color="#A53F36" />
+            <Text style={styles.compartilharBtnText}>Compartilhar</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.detalhesInfo}>
-          {celula.dia_semana && (
-            <Text style={styles.detalhesInfoText}>📅 {celula.dia_semana}</Text>
-          )}
-          <Text style={styles.detalhesInfoText}>⏰ {celula.horario}</Text>
-          {celula.local && (
-            <Text style={styles.detalhesInfoText}>📍 {celula.local}</Text>
-          )}
-        </View>
+
+        {/* Descrição */}
         {celula.descricao ? (
-          <Text style={styles.detalhesDescricao}>{celula.descricao}</Text>
+          <Text style={styles.celulaDescricao}>{celula.descricao}</Text>
         ) : null}
       </View>
 
-      {/* Botão Mural de Oração da Célula */}
-      <TouchableOpacity
-        style={styles.muralCelulaBtn}
-        onPress={() =>
-          navigation.navigate('MuralCelula', {
-            celulaId: celula.id,
-            celulaNome: celula.nome,
-          })
-        }
-        activeOpacity={0.85}
-      >
-        <Text style={styles.muralCelulaBtnIcon}>🙏</Text>
-        <View style={styles.muralCelulaBtnInfo}>
-          <Text style={styles.muralCelulaBtnTitle}>Mural de Oração da Célula</Text>
-          <Text style={styles.muralCelulaBtnSubtitle}>
-            Veja os pedidos de oração compartilhados com esta célula
-          </Text>
-        </View>
-        <Text style={styles.muralCelulaBtnArrow}>→</Text>
-      </TouchableOpacity>
-
-      {/* Feed com CardPostagem */}
-      <View style={styles.ensinoSection}>
-        <View style={styles.ensinoHeader}>
-          <Text style={styles.ensinoTitle}>📖 Feed</Text>
-          <View style={styles.ensinoHeaderAcoes}>
-            {!podeGerenciar && (
-              <TouchableOpacity style={styles.denunciarFeedBtn} onPress={handleDenunciarFeed} activeOpacity={0.7}>
-                <Text style={styles.denunciarFeedBtnText}>🚩</Text>
-              </TouchableOpacity>
-            )}
-            {podeGerenciar && (
-              <TouchableOpacity style={styles.atualizarEnsinoBtn} onPress={() => setShowConteudoModal(true)}>
-                <Text style={styles.atualizarEnsinoBtnText}>➕ Novo</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {conteudos.length > 0 ? (
-          conteudos.map((conteudo) => {
-            const linkExterno = conteudo.link_externo || '';
-            const icone = linkExterno ? getIconePorLink(linkExterno) : '📝';
-            const tipoIcone = icone === '📝' ? 'texto' : icone === '🖼️' ? 'imagem' : icone === '🎥' ? 'video' : icone === '🎧' ? 'audio' : 'link';
-
-            const textoPostagem = conteudo.mensagem || '';
-            const tituloPost = conteudo.titulo || '';
-
-            // Extrai video_id do título (salvo no formato "... 🎬VIDEO_ID")
-            let videoId = '';
-            if (tipoIcone === 'video') {
-              const m = tituloPost.match(/🎬([A-Za-z0-9_-]{11})/);
-              videoId = m ? m[1] : '';
-            }
-
-            const postagemAdaptada = {
-              id: conteudo.id,
-              autor_nome: user?.displayName || 'Líder',
-              autor_foto_url: user?.photoURL || null,
-              autor_id: user?.uid || '',
-              createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
-              texto: textoPostagem,
-              tipo_postagem: tipoIcone,
-              anexo: tipoIcone !== 'texto' && linkExterno ? { tipo: tipoIcone, uri: linkExterno, dadosExtras: { url: linkExterno, video_id: videoId, titulo: tituloPost, descricao: textoPostagem } } : null,
-            };
-            return (
-              <CardPostagem
-                key={conteudo.id}
-                postagem={postagemAdaptada}
-                userId={user?.uid}
-                onPressPerfil={() => {}}
-                onLike={() => {}}
-                onComment={() => {}}
-                onShare={() => {}}
-                onEditar={() => handleAbrirEdicao(conteudo)}
-                onExcluir={async () => {
-                  Alert.alert('Excluir postagem', 'Tem certeza?', [
-                    { text: 'Cancelar', style: 'cancel' },
-                    { text: 'Excluir', style: 'destructive', onPress: async () => {
-                      try { await removerConteudoEnsino(celulaId, conteudo); }
-                      catch (error) { Alert.alert('Erro', 'Não foi possível excluir.'); }
-                    }},
-                  ]);
-                }}
-              />
-            );
-          })
-        ) : (
-          <View style={styles.semEnsino}>
-            <Text style={styles.semEnsinoEmoji}>📚</Text>
-            <Text style={styles.semEnsinoText}>
-              Nenhum conteúdo publicado ainda.
+      {/* ============================================ */}
+      {/* NAVEGAÇÃO EM ABAS (Tabs Locais) */}
+      {/* ============================================ */}
+      <View style={styles.abasContainer}>
+        {['Posts', 'Membros', 'Eventos', 'Pedidos'].map((aba) => (
+          <TouchableOpacity
+            key={aba}
+            style={[styles.abaItem, abaAtiva === aba && styles.abaItemAtiva]}
+            onPress={() => setAbaAtiva(aba)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.abaText, abaAtiva === aba && styles.abaTextAtiva]}>
+              {aba === 'Posts' ? 'Posts' : aba}
             </Text>
-            {podeGerenciar && (
-              <Text style={styles.semEnsinoHint}>
-                Toque em "Novo" para publicar o primeiro conteúdo.
-              </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ============================================ */}
+      {/* ÁREA DE CONTEÚDO CONDICIONAL */}
+      {/* ============================================ */}
+      <View style={styles.conteudoArea}>
+        {abaAtiva === 'Posts' && (
+          <View style={styles.postsSection}>
+            <View style={styles.postsHeader}>
+              <Text style={styles.postsHeaderTitle}>📖 Feed</Text>
+              {podeGerenciar && (
+                <TouchableOpacity style={styles.novoPostBtn} onPress={() => setShowConteudoModal(true)}>
+                  <Text style={styles.novoPostBtnText}>➕ Novo</Text>
+                </TouchableOpacity>
+              )}
+              {!podeGerenciar && (
+                <TouchableOpacity style={styles.denunciaBtn} onPress={handleDenunciarFeed}>
+                  <Text style={styles.denunciaBtnText}>🚩</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {conteudos.length > 0 ? (
+              conteudos.map((conteudo) => {
+                const linkExterno = conteudo.link_externo || '';
+                const icone = linkExterno ? getIconePorLink(linkExterno) : '📝';
+                const tipoIcone = icone === '📝' ? 'texto' : icone === '🖼️' ? 'imagem' : icone === '🎥' ? 'video' : icone === '🎧' ? 'audio' : 'link';
+                const textoPostagem = conteudo.mensagem || '';
+                const tituloPost = conteudo.titulo || '';
+                let videoId = '';
+                if (tipoIcone === 'video') {
+                  const m = tituloPost.match(/🎬([A-Za-z0-9_-]{11})/);
+                  videoId = m ? m[1] : '';
+                }
+                const postagemAdaptada = {
+                  id: conteudo.id,
+                  autor_nome: user?.displayName || 'Líder',
+                  autor_foto_url: user?.photoURL || null,
+                  autor_id: user?.uid || '',
+                  createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
+                  texto: textoPostagem,
+                  tipo_postagem: tipoIcone,
+                  anexo: tipoIcone !== 'texto' && linkExterno ? { tipo: tipoIcone, uri: linkExterno, dadosExtras: { url: linkExterno, video_id: videoId, titulo: tituloPost, descricao: textoPostagem } } : null,
+                };
+                return (
+                  <CardPostagem
+                    key={conteudo.id}
+                    postagem={postagemAdaptada}
+                    userId={user?.uid}
+                    onPressPerfil={() => {}}
+                    onLike={() => {}}
+                    onComment={() => {}}
+                    onShare={() => {}}
+                    onEditar={() => handleAbrirEdicao(conteudo)}
+                    onExcluir={async () => {
+                      Alert.alert('Excluir postagem', 'Tem certeza?', [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Excluir', style: 'destructive', onPress: async () => {
+                          try { await removerConteudoEnsino(celulaId, conteudo); }
+                          catch (error) { Alert.alert('Erro', 'Não foi possível excluir.'); }
+                        }},
+                      ]);
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <View style={styles.semConteudo}>
+                <Text style={styles.semConteudoEmoji}>📚</Text>
+                <Text style={styles.semConteudoText}>Nenhum conteúdo publicado ainda.</Text>
+                {podeGerenciar && (
+                  <Text style={styles.semConteudoHint}>Toque em "Novo" para publicar o primeiro conteúdo.</Text>
+                )}
+              </View>
             )}
           </View>
         )}
-      </View>
 
-      {/* Modal de Membros */}
-      <Modal
-        visible={modalMembrosVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setModalMembrosVisible(false)}
-      >
-        <View style={styles.modalMembrosOverlay}>
-          <View style={styles.modalMembrosContainer}>
-            <View style={styles.modalMembrosHeader}>
-              <Text style={styles.modalMembrosTitle}>
-                👥 Membros ({membros.length})
-              </Text>
-              <TouchableOpacity
-                style={styles.modalMembrosCloseBtn}
-                onPress={() => setModalMembrosVisible(false)}
-              >
-                <Text style={styles.modalMembrosCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {membros.map((membro) => {
-                const ehLider = membro.uid === celula.lider_id;
-                const ehCoLider = celula.co_lideres_ids?.includes(membro.uid);
-                const podePromover = isLider && !ehLider && !ehCoLider;
-
-                return (
-                  <View key={membro.uid} style={styles.membroCard}>
-                    <View style={styles.membroAvatar}>
-                      <Text style={styles.membroAvatarText}>
-                        {membro.nome?.charAt(0)?.toUpperCase() || '?'}
-                      </Text>
-                    </View>
-                    <View style={styles.membroInfo}>
-                      <Text style={styles.membroNome}>{membro.nome}</Text>
-                      <Text style={styles.membroTitulo}>
-                        {ehLider
-                          ? '👑 Líder'
-                          : ehCoLider
-                          ? '⭐ Co-Líder'
-                          : membro.titulo_ministerial || 'Membro'}
-                      </Text>
-                    </View>
-                    {podePromover && (
-                      <TouchableOpacity
-                        style={styles.promoverBtn}
-                        onPress={() => handlePromover(membro.uid, membro.nome)}
-                      >
-                        <Text style={styles.promoverBtnText}>⭐</Text>
-                      </TouchableOpacity>
+        {abaAtiva === 'Membros' && (
+          <View style={styles.membrosSection}>
+            <Text style={styles.membrosSectionTitle}>👥 Membros ({membros.length})</Text>
+            {membros.map((membro) => {
+              const ehLider = membro.uid === celula.lider_id;
+              const ehCoLider = celula.co_lideres_ids?.includes(membro.uid);
+              const podePromover = isLider && !ehLider && !ehCoLider;
+              const fotoMembro = membro.foto_url || membro.photoURL || null;
+              return (
+                <View key={membro.uid} style={styles.membroCardModerno}>
+                  <View style={styles.membroAvatarModerno}>
+                    {fotoMembro ? (
+                      <Image source={{ uri: fotoMembro }} style={styles.membroAvatarImage} />
+                    ) : (
+                      <Text style={styles.membroAvatarText}>{membro.nome?.charAt(0)?.toUpperCase() || '?'}</Text>
                     )}
                   </View>
-                );
-              })}
-            </ScrollView>
+                  <View style={styles.membroInfoModerno}>
+                    <Text style={styles.membroNomeModerno}>{membro.nome}</Text>
+                    <Text style={styles.membroTituloModerno}>
+                      {ehLider ? '👑 Líder' : ehCoLider ? '⭐ Co-Líder' : membro.titulo_ministerial || 'Membro'}
+                    </Text>
+                  </View>
+                  {podePromover && (
+                    <TouchableOpacity style={styles.promoverBtnModerno} onPress={() => handlePromover(membro.uid, membro.nome)}>
+                      <Text style={styles.promoverBtnText}>⭐</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
           </View>
-        </View>
-      </Modal>
+        )}
 
+        {abaAtiva === 'Eventos' && (
+          <View style={styles.eventosEmpty}>
+            <Ionicons name="calendar-outline" size={48} color="#94A3B8" />
+            <Text style={styles.eventosEmptyText}>Em breve</Text>
+            <Text style={styles.eventosEmptySubtext}>Os eventos da célula aparecerão aqui.</Text>
+          </View>
+        )}
 
-      <View style={{ height: SPACING.xxl }} />
+        {abaAtiva === 'Pedidos' && (
+          <TouchableOpacity
+            style={styles.muralOracaoBtn}
+            onPress={() =>
+              navigation.navigate('MuralCelula', {
+                celulaId: celula.id,
+                celulaNome: celula.nome,
+              })
+            }
+            activeOpacity={0.85}
+          >
+            <Text style={styles.muralOracaoBtnIcon}>🙏</Text>
+            <View style={styles.muralOracaoBtnInfo}>
+              <Text style={styles.muralOracaoBtnTitle}>Mural de Oração da Célula</Text>
+              <Text style={styles.muralOracaoBtnSubtitle}>
+                Veja os pedidos de oração compartilhados com esta célula
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#A53F36" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={{ height: SPACING.xl }} />
+
+      {/* ============================================ */}
+      {/* MODAIS */}
+      {/* ============================================ */}
 
       {/* Modal de Criação de Postagem (Novo Feed) */}
       <ModalCriacaoPostagem
@@ -985,9 +833,9 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
 // Tela Principal de Células
 // ============================================================
 export default function CelulasScreen() {
+  const navigation = useNavigation();
   const [celulas, setCelulas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCriarModal, setShowCriarModal] = useState(false);
   const [celulaDetalhesId, setCelulaDetalhesId] = useState(null);
   const [pesquisa, setPesquisa] = useState('');
   const [showConviteModal, setShowConviteModal] = useState(false);
@@ -1059,10 +907,6 @@ export default function CelulasScreen() {
   const celulasParaExplorar = celulasFiltradas.filter((c) => !userCelulasIds.includes(c.id));
 
   const podeCriar = (userProfile?.endossos_uids?.length || 0) >= 5 || userProfile?.verificado_lideranca === true;
-
-  const handleCriarCelula = async (nome, horario, dadosAdicionais) => {
-    await criarCelula(nome, horario, user.uid, dadosAdicionais);
-  };
 
   const handleInscrever = async (celulaId) => {
     try {
@@ -1352,7 +1196,7 @@ export default function CelulasScreen() {
         >
           <TouchableOpacity
             style={styles.fab}
-            onPress={() => setShowCriarModal(true)}
+            onPress={() => navigation.navigate('CriarCelula')}
             activeOpacity={0.8}
           >
             <Text style={styles.fabText}>+</Text>
@@ -1422,11 +1266,6 @@ export default function CelulasScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <CriarCelulaModal
-        visible={showCriarModal}
-        onClose={() => setShowCriarModal(false)}
-        onCriar={handleCriarCelula}
-      />
     </View>
   );
 }
@@ -1710,6 +1549,332 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     color: COLORS.gray500,
     textAlign: 'center',
+  },
+
+  // ============================================================
+  // DETALHES - Design Moderno (CelulaDetalhes)
+  // ============================================================
+
+  // Hero Section
+  capaWrapper: {
+    width: '100%',
+    height: 220,
+    position: 'relative',
+  },
+  capaImage: {
+    width: '100%',
+    height: 220,
+  },
+  capaPlaceholder: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#E2E8F0',
+  },
+  capaHeaderOverlay: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  capaHeaderBtn: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Perfil Container (sobrepõe a capa)
+  perfilContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -20,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  avatarWrapper: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    marginTop: -45,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarPlaceholderText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#64748B',
+  },
+
+  // Título
+  tituloRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 12,
+  },
+  tituloInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  celulaTitulo: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 4,
+  },
+  celulaSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  compartilharBtn: {
+    borderWidth: 1.5,
+    borderColor: '#A53F36',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compartilharBtnText: {
+    color: '#A53F36',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  celulaDescricao: {
+    fontSize: 15,
+    color: '#475569',
+    lineHeight: 22,
+    marginTop: 16,
+  },
+
+  // Abas (Tabs)
+  abasContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginTop: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  abaItem: {
+    paddingBottom: 12,
+  },
+  abaItemAtiva: {
+    borderBottomWidth: 3,
+    borderBottomColor: '#A53F36',
+  },
+  abaText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  abaTextAtiva: {
+    color: '#A53F36',
+    fontWeight: 'bold',
+  },
+
+  // Área de Conteúdo
+  conteudoArea: {
+    backgroundColor: '#FAF5F0',
+    minHeight: 200,
+    paddingHorizontal: 0,
+    paddingTop: 12,
+  },
+
+  // Posts
+  postsSection: {
+    backgroundColor: '#FAF5F0',
+    paddingHorizontal: 16,
+  },
+  postsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  postsHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+  novoPostBtn: {
+    backgroundColor: '#A53F36',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  novoPostBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  denunciaBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  denunciaBtnText: {
+    fontSize: 15,
+  },
+  semConteudo: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  semConteudoEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  semConteudoText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  semConteudoHint: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+
+  // Membros (dentro dos detalhes)
+  membrosSection: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  membrosSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  membroCardModerno: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  membroAvatarModerno: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#A53F36',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  membroAvatarImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+  membroInfoModerno: {
+    flex: 1,
+  },
+  membroNomeModerno: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  membroTituloModerno: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  promoverBtnModerno: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Eventos (placeholder)
+  eventosEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+  },
+  eventosEmptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#64748B',
+    marginTop: 12,
+  },
+  eventosEmptySubtext: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  // Mural de Oração (na aba Pedidos)
+  muralOracaoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#A53F36' + '12',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#A53F36' + '30',
+  },
+  muralOracaoBtnIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  muralOracaoBtnInfo: {
+    flex: 1,
+  },
+  muralOracaoBtnTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#A53F36',
+    marginBottom: 2,
+  },
+  muralOracaoBtnSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
   },
 
   // FAB Container (animado)

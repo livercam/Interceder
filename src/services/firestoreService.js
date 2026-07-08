@@ -423,6 +423,7 @@ export const criarCelula = async (nome, horario, userUid, dadosAdicionais = {}) 
     dia_semana: dadosAdicionais.dia_semana || '',
     local: dadosAdicionais.local || '',
     tipo: dadosAdicionais.tipo || 'publica', // 'publica' ou 'fechada'
+    capa_url: dadosAdicionais.capa_url || null, // URL da foto de capa
     solicitacoes_pendentes: [], // UIDs de quem pediu para entrar (célula fechada)
     codigo_convite: codigoConvite, // Código único para convites
     createdAt: serverTimestamp(),
