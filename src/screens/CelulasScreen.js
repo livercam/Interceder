@@ -518,11 +518,6 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const nomeLider = liderData?.nome || user?.displayName || 'Líder';
   const fotoLider = liderData?.foto_url || liderData?.photoURL || user?.photoURL || null;
 
-  // Debug completo da célula
-  console.log('[CelulaDetalhes] Celula keys:', Object.keys(celula).join(', '));
-  console.log('[CelulaDetalhes] capa_url value:', JSON.stringify(celula.capa_url));
-  console.log('[CelulaDetalhes] celula.id:', celula.id);
-
   // URL da capa com fallback para múltiplos nomes de campo
   const capaUrl = celula.capa_url || celula.urlCapaFinal || celula.imagem_url || celula.url_capa || null;
 
@@ -536,9 +531,6 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
       {/* HERO SECTION - Capa + Header Sobreposto */}
       {/* ============================================ */}
       <View style={styles.capaWrapper}>
-        {/* Log de rastreamento */}
-        {console.log('3. [Render] URL recebida na leitura do banco:', JSON.stringify(celula?.capa_url))}
-
         {/* Renderização defensiva: só exibe Image se capa_url for uma string válida */}
         {(celula?.capa_url && typeof celula.capa_url === 'string' && celula.capa_url.trim() !== '') ? (
           <Image

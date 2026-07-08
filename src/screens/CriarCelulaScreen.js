@@ -93,7 +93,6 @@ export default function CriarCelulaScreen() {
 
       // ETAPA 1: FAZ O UPLOAD SE HOUVER IMAGEM SELECIONADA
       if (capaUri) {
-        console.log('[CriarCelula] Iniciando upload da imagem...');
         const token = await user.getIdToken();
         const nomeArquivo = `capa_${Date.now()}.jpg`;
         const urlStorage = `${STORAGE_BUCKET_URL}?name=celulas_capas%2F${nomeArquivo}`;
@@ -107,7 +106,6 @@ export default function CriarCelulaScreen() {
         });
 
         urlCapaFinal = `${STORAGE_BUCKET_URL}/celulas_capas%2F${nomeArquivo}?alt=media`;
-        console.log('[CriarCelula] Upload concluído. URL final:', urlCapaFinal);
       }
 
       // ETAPA 2: MONTA O PAYLOAD (Garantindo a URL da capa)
@@ -116,10 +114,8 @@ export default function CriarCelulaScreen() {
         dia_semana: diaSemana.trim(),
         local: local.trim(),
         tipo,
-        capa_url: urlCapaFinal, // A INJEÇÃO DA URL ACONTECE AQUI
+        capa_url: urlCapaFinal,
       };
-
-      console.log('[CriarCelula] Enviando para o Firestore:', JSON.stringify(payloadNovaCelula));
 
       // ETAPA 3: SALVA NO FIRESTORE
       await criarCelula(nome.trim(), horario.trim(), user.uid, payloadNovaCelula);
