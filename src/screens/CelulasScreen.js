@@ -41,6 +41,8 @@ import {
   getUserProfile,
   buscarCelulaPorCodigoConvite,
   entrarPorCodigoConvite,
+  fixarConteudoEnsino,
+  toggleInteresseEvento,
 } from '../services/firestoreService';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
@@ -303,6 +305,41 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const handlePostarFeed = useCallback(async (dadosPostagem) => {
     const { texto, tipo_postagem, anexo } = dadosPostagem;
     const textoLimpo = (texto || '').trim();
+
+    // Tratamento especial para Evento com upload de capa
+    if (tipo_postagem === 'evento' && anexo?.dadosExtras) {
+      const { titulo_evento, data_evento_texto, data_iso, hora_evento, capa_evento_uri } = anexo.dadosExtras;
+      const tituloEvento = titulo_evento || 'Evento';
+      let capaEventoUrl = '';
+
+      // Upload da imagem de capa se existir
+      if (capa_evento_uri && capa_evento_uri !== 'p') {
+        try {
+          const token = await user.getIdToken();
+          const nomeArquivo = `evento_capa_${Date.now()}.jpg`;
+          const urlStorage = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=eventos%2F${celulaId}%2F${nomeArquivo}`;
+          await uploadAsync(urlStorage, capa_evento_uri, {
+            httpMethod: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
+          });
+          capaEventoUrl = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/eventos%2F${celulaId}%2F${nomeArquivo}?alt=media`;
+        } catch (uploadError) {
+          console.warn('[Celulas] Erro ao fazer upload da capa do evento:', uploadError.message);
+        }
+      }
+
+      const dadosEvento = JSON.stringify({
+        titulo_evento: tituloEvento,
+        data_evento_texto: data_evento_texto || '',
+        data_iso: data_iso || '',
+        hora_evento: hora_evento || '',
+        capa_evento_url: capaEventoUrl,
+        interessados_ids: [],
+      });
+      await adicionarConteudoEnsino(celulaId, `📅 ${tituloEvento}`, dadosEvento, '', userUid);
+      setShowConteudoModal(false);
+      return;
+    }
     let titulo = textoLimpo.split('\n')[0]?.substring(0, 60) || '';
     let linkFinal = '';
 
@@ -490,6 +527,28 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
     );
   };
 
+  // Handler para fixar/desfixar postagem (MUST be before early returns)
+  const handleFixarPostagem = useCallback(async (postId) => {
+    if (!celula) return;
+    try {
+      const novoFixado = celula?.post_fixado_id === postId ? '' : postId;
+      await fixarConteudoEnsino(celulaId, novoFixado);
+    } catch (error) {
+      console.warn('[CelulaDetalhes] Erro ao fixar postagem:', error.message);
+      Alert.alert('Erro', 'Não foi possível fixar a postagem.');
+    }
+  }, [celulaId, celula?.post_fixado_id]);
+
+  // Handler para alternar interesse em evento
+  const handleToggleInteresse = useCallback(async (postId) => {
+    if (!user?.uid) return;
+    try {
+      await toggleInteresseEvento(celulaId, postId, user.uid);
+    } catch (error) {
+      console.warn('[CelulaDetalhes] Erro ao alternar interesse:', error.message);
+    }
+  }, [celulaId, user?.uid]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -506,11 +565,28 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
     );
   }
 
-  // Ordenar conteúdos do Feed do mais recente para o mais antigo
+  // Ordenar conteúdos do Feed: item fixado no topo, depois por data decrescente
   const conteudos = (celula.conteudos_ensino || []).sort((a, b) => {
+    const aFixado = a.id === celula?.post_fixado_id;
+    const bFixado = b.id === celula?.post_fixado_id;
+    if (aFixado) return -1;
+    if (bFixado) return 1;
     const dataA = a.criadoEm ? new Date(a.criadoEm).getTime() : 0;
     const dataB = b.criadoEm ? new Date(b.criadoEm).getTime() : 0;
     return dataB - dataA; // Decrescente: mais recente primeiro
+  });
+
+  // Separar eventos e posts para roteamento de abas
+  const listaEventos = [];
+  const listaPosts = [];
+  conteudos.forEach((conteudo) => {
+    let isEvento = false;
+    try {
+      const parsed = JSON.parse(conteudo.mensagem || '{}');
+      if (parsed && parsed.titulo_evento !== undefined) isEvento = true;
+    } catch (e) {}
+    if (isEvento) listaEventos.push(conteudo);
+    if (!isEvento || conteudo.id === celula?.post_fixado_id) listaPosts.push(conteudo);
   });
 
   // Dados do líder para o avatar
@@ -522,11 +598,12 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const capaUrl = celula.capa_url || celula.urlCapaFinal || celula.imagem_url || celula.url_capa || null;
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      bounces={false}
-    >
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
       {/* ============================================ */}
       {/* HERO SECTION - Capa + Header Sobreposto */}
       {/* ============================================ */}
@@ -566,6 +643,12 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                 ops.push({
                   texto: '✏️ Editar Célula',
                   aoPressionar: () => navigation.navigate('EditarCelula', { celulaId: celula?.id }),
+                });
+              }
+              if (!podeGerenciar) {
+                ops.push({
+                  texto: '🚩 Denunciar Célula',
+                  aoPressionar: handleDenunciarFeed,
                 });
               }
               ops.push({ texto: '🚪 Sair da Célula', destrutivo: true, aoPressionar: handleSair });
@@ -651,22 +734,8 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
       <View style={styles.conteudoArea}>
         {abaAtiva === 'Posts' && (
           <View style={styles.postsSection}>
-            <View style={styles.postsHeader}>
-              <Text style={styles.postsHeaderTitle}>📖 Feed</Text>
-              {podeGerenciar && (
-                <TouchableOpacity style={styles.novoPostBtn} onPress={() => setShowConteudoModal(true)}>
-                  <Text style={styles.novoPostBtnText}>➕ Novo</Text>
-                </TouchableOpacity>
-              )}
-              {!podeGerenciar && (
-                <TouchableOpacity style={styles.denunciaBtn} onPress={handleDenunciarFeed}>
-                  <Text style={styles.denunciaBtnText}>🚩</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {conteudos.length > 0 ? (
-              conteudos.map((conteudo) => {
+            {listaPosts.length > 0 ? (
+              listaPosts.map((conteudo) => {
                 const linkExterno = conteudo.link_externo || '';
                 const icone = linkExterno ? getIconePorLink(linkExterno) : '📝';
                 const tipoIcone = icone === '📝' ? 'texto' : icone === '🖼️' ? 'imagem' : icone === '🎥' ? 'video' : icone === '🎧' ? 'audio' : 'link';
@@ -677,6 +746,17 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                   const m = tituloPost.match(/🎬([A-Za-z0-9_-]{11})/);
                   videoId = m ? m[1] : '';
                 }
+                // Detectar se é um evento (mensagem contém JSON com dados de evento)
+                let isEvento = false;
+                let dadosEvento = null;
+                try {
+                  const parsed = JSON.parse(textoPostagem);
+                  if (parsed && parsed.titulo_evento !== undefined) {
+                    isEvento = true;
+                    dadosEvento = parsed;
+                  }
+                } catch (e) { /* não é JSON, ignorar */ }
+
                 const postagemAdaptada = {
                   id: conteudo.id,
                   autor_nome: user?.displayName || 'Líder',
@@ -684,14 +764,19 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                   autor_id: user?.uid || '',
                   createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
                   texto: textoPostagem,
-                  tipo_postagem: tipoIcone,
-                  anexo: tipoIcone !== 'texto' && linkExterno ? { tipo: tipoIcone, uri: linkExterno, dadosExtras: { url: linkExterno, video_id: videoId, titulo: tituloPost, descricao: textoPostagem } } : null,
+                  tipo_postagem: isEvento ? 'evento' : tipoIcone,
+                  anexo: isEvento
+                    ? { tipo: 'evento', dadosExtras: { titulo_evento: dadosEvento?.titulo_evento, data_evento_texto: dadosEvento?.data_evento_texto || dadosEvento?.data_evento, data_iso: dadosEvento?.data_iso || '', hora_evento: dadosEvento?.hora_evento, capa_evento_url: dadosEvento?.capa_evento_url || '', interessados_ids: dadosEvento?.interessados_ids || [] } }
+                    : tipoIcone !== 'texto' && linkExterno ? { tipo: tipoIcone, uri: linkExterno, dadosExtras: { url: linkExterno, video_id: videoId, titulo: tituloPost, descricao: textoPostagem } } : null,
                 };
                 return (
                   <CardPostagem
                     key={conteudo.id}
                     postagem={postagemAdaptada}
                     userId={user?.uid}
+                    isFixado={conteudo.id === celula?.post_fixado_id}
+                    onFixar={() => handleFixarPostagem(conteudo.id)}
+                    onToggleInteresse={isEvento ? () => handleToggleInteresse(conteudo.id) : undefined}
                     onPressPerfil={() => {}}
                     onLike={() => {}}
                     onComment={() => {}}
@@ -756,10 +841,58 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
         )}
 
         {abaAtiva === 'Eventos' && (
-          <View style={styles.eventosEmpty}>
-            <Ionicons name="calendar-outline" size={48} color="#94A3B8" />
-            <Text style={styles.eventosEmptyText}>Em breve</Text>
-            <Text style={styles.eventosEmptySubtext}>Os eventos da célula aparecerão aqui.</Text>
+          <View style={styles.postsSection}>
+            {listaEventos.length > 0 ? (
+              listaEventos.map((conteudo) => {
+                const textoPostagem = conteudo.mensagem || '';
+                let dadosEvento = null;
+                try {
+                  const parsed = JSON.parse(textoPostagem);
+                  if (parsed && parsed.titulo_evento !== undefined) dadosEvento = parsed;
+                } catch (e) {}
+
+                const postagemAdaptada = {
+                  id: conteudo.id,
+                  autor_nome: user?.displayName || 'Líder',
+                  autor_foto_url: user?.photoURL || null,
+                  autor_id: user?.uid || '',
+                  createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
+                  texto: textoPostagem,
+                  tipo_postagem: 'evento',
+                  anexo: { tipo: 'evento', dadosExtras: { titulo_evento: dadosEvento?.titulo_evento, data_evento_texto: dadosEvento?.data_evento_texto || dadosEvento?.data_evento, data_iso: dadosEvento?.data_iso || '', hora_evento: dadosEvento?.hora_evento, capa_evento_url: dadosEvento?.capa_evento_url || '', interessados_ids: dadosEvento?.interessados_ids || [] } },
+                };
+                return (
+                  <CardPostagem
+                    key={conteudo.id}
+                    postagem={postagemAdaptada}
+                    userId={user?.uid}
+                    isFixado={conteudo.id === celula?.post_fixado_id}
+                    onFixar={() => handleFixarPostagem(conteudo.id)}
+                    onToggleInteresse={() => handleToggleInteresse(conteudo.id)}
+                    onPressPerfil={() => {}}
+                    onLike={() => {}}
+                    onComment={() => {}}
+                    onShare={() => {}}
+                    onEditar={() => handleAbrirEdicao(conteudo)}
+                    onExcluir={async () => {
+                      Alert.alert('Excluir evento', 'Tem certeza?', [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Excluir', style: 'destructive', onPress: async () => {
+                          try { await removerConteudoEnsino(celulaId, conteudo); }
+                          catch (error) { Alert.alert('Erro', 'Não foi possível excluir.'); }
+                        }},
+                      ]);
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <View style={styles.eventosEmpty}>
+                <Ionicons name="calendar-outline" size={48} color="#94A3B8" />
+                <Text style={styles.eventosEmptyText}>Nenhum evento</Text>
+                <Text style={styles.eventosEmptySubtext}>Os eventos da célula aparecerão aqui.</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -818,6 +951,20 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
         itemTipo="celula"
       />
     </ScrollView>
+
+      {/* FAB Fixo de Criação de Postagem/Evento */}
+      {podeGerenciar && (
+        <View style={styles.fabContainer}>
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setShowConteudoModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 

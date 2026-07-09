@@ -26,9 +26,15 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
   const [tecladoAltura, setTecladoAltura] = useState(0);
   const [texto, setTexto] = useState(''); const [anexo, setAnexo] = useState({ tipo: null, uri: null, dadosExtras: null }); const [linkUrl, setLinkUrl] = useState('');
 
+  // Estado para Evento
+  const [tituloEvento, setTituloEvento] = useState('');
+  const [dataEvento, setDataEvento] = useState('');
+  const [horaEvento, setHoraEvento] = useState('');
+  const [capaEventoUri, setCapaEventoUri] = useState(null);
+
   useEffect(() => { const s = Keyboard.addListener('keyboardDidShow', (e) => setTecladoAltura(e.endCoordinates.height)); const h = Keyboard.addListener('keyboardDidHide', () => setTecladoAltura(0)); return () => { s.remove(); h.remove(); }; }, []);
 
-  const reset = useCallback(() => { setTexto(''); setAnexo({ tipo: null, uri: null, dadosExtras: null }); setLinkUrl(''); }, []);
+  const reset = useCallback(() => { setTexto(''); setAnexo({ tipo: null, uri: null, dadosExtras: null }); setLinkUrl(''); setTituloEvento(''); setDataEvento(''); setHoraEvento(''); }, []);
   const fechar = useCallback(() => { reset(); onFechar(); }, [onFechar, reset]);
   const removerAnexo = useCallback(() => { setAnexo({ tipo: null, uri: null, dadosExtras: null }); if (anexo.tipo === 'link') setLinkUrl(''); }, [anexo.tipo]);
 
@@ -41,6 +47,11 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
   }, []);
 
   const selTipo = useCallback((t) => {
+    // Se selecionar evento, limpa anexo e ativa modo evento
+    if (t === 'evento') {
+      setAnexo({ tipo: 'evento', uri: null, dadosExtras: {} });
+      return;
+    }
     if (t === 'imagem') { handlePickerImagem(); }
     else if (t === 'video') setAnexo({ tipo: 'video', uri: null, dadosExtras: { video_id: '' } });
     else if (t === 'audio') setAnexo({ tipo: 'audio', uri: null, dadosExtras: null });
@@ -49,8 +60,66 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
 
   const audioReady = useCallback((d) => { setAnexo({ tipo: 'audio', uri: d.uri, dadosExtras: d }); }, []);
 
+  // Seletor de imagem para capa do evento
+  const selecionarCapaEvento = useCallback(async () => {
+    Alert.alert('Selecionar capa do evento', 'Escolha:', [
+      { text: '📷 Câmera', onPress: async () => { const p = await ImagePicker.requestCameraPermissionsAsync(); if (!p.granted) { Alert.alert('','Precisamos da câmera.'); return; } const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [16,9], quality: 0.8 }); if (!r.canceled && r.assets?.[0]?.uri) setCapaEventoUri(r.assets[0].uri); }},
+      { text: '🖼️ Galeria', onPress: async () => { const p = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!p.granted) { Alert.alert('','Precisamos da galeria.'); return; } const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [16,9], quality: 0.8 }); if (!r.canceled && r.assets?.[0]?.uri) setCapaEventoUri(r.assets[0].uri); }},
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }, []);
+
   const renderAnexo = () => {
     if (!anexo.tipo) return null;
+
+    // Renderização especial para Evento
+    if (anexo.tipo === 'evento') {
+      return (
+        <View style={s.anexoContainer}>
+          <Text style={s.inputLabel}>📅 Título do Evento</Text>
+          <TextInput
+            style={s.input}
+            placeholder="Ex: Próximo encontro"
+            placeholderTextColor="#B0B3B8"
+            value={tituloEvento}
+            onChangeText={setTituloEvento}
+          />
+          <Text style={s.inputLabel}>📆 Data (texto para exibição)</Text>
+          <TextInput
+            style={s.input}
+            placeholder="Ex: 24 de Maio de 2025 (Sábado)"
+            placeholderTextColor="#B0B3B8"
+            value={dataEvento}
+            onChangeText={setDataEvento}
+          />
+          <Text style={s.inputLabel}>⏰ Horário</Text>
+          <TextInput
+            style={s.input}
+            placeholder="Ex: 19:30"
+            placeholderTextColor="#B0B3B8"
+            value={horaEvento}
+            onChangeText={setHoraEvento}
+          />
+
+          {/* Upload de Capa do Evento */}
+          <Text style={s.inputLabel}>🖼️ Imagem de Capa (opcional)</Text>
+          {capaEventoUri ? (
+            <View style={s.anexoPreviewImageWrapper}>
+              <Image source={{ uri: capaEventoUri }} style={s.imagemPreview} resizeMode="cover" />
+              <TouchableOpacity style={s.btnRemoverAnexoAbsoluto} onPress={() => setCapaEventoUri(null)} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={28} color={COLORS.error} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={s.anexoPlaceholderImage} onPress={selecionarCapaEvento} activeOpacity={0.7}>
+              <Ionicons name="image-outline" size={48} color={COLORS.gray300} />
+              <Text style={s.anexoPlaceholderText}>Adicionar capa</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+
     switch (anexo.tipo) {
       case 'imagem':
         return (<View style={s.anexoPreviewContainer}><View style={s.anexoPreviewImageWrapper}>
@@ -72,7 +141,36 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
   };
 
   const audioRemove = useCallback(() => { setAnexo({ tipo: null, uri: null, dadosExtras: null }); }, []);
-  const postar = useCallback(() => { if (!texto.trim() && !anexo.tipo) return; onPostar({ texto: texto.trim(), tipo_postagem: anexo.tipo || 'texto', anexo: anexo.tipo ? { ...anexo } : null }); reset(); }, [texto, anexo, onPostar, reset]);
+
+  const postar = useCallback(() => {
+    // Validação de Evento
+    if (anexo.tipo === 'evento') {
+      if (!tituloEvento.trim()) {
+        Alert.alert('Atenção', 'Preencha o título do evento.');
+        return;
+      }
+      onPostar({
+        texto: tituloEvento.trim(),
+        tipo_postagem: 'evento',
+        anexo: {
+          tipo: 'evento',
+          dadosExtras: {
+            titulo_evento: tituloEvento.trim(),
+            data_evento_texto: dataEvento.trim(),
+            data_iso: '',  // Será computado no backend ou pode ser digitado separadamente
+            hora_evento: horaEvento.trim(),
+            capa_evento_uri: capaEventoUri || '',
+          },
+        },
+      });
+      reset();
+      return;
+    }
+
+    if (!texto.trim() && !anexo.tipo) return;
+    onPostar({ texto: texto.trim(), tipo_postagem: anexo.tipo || 'texto', anexo: anexo.tipo ? { ...anexo } : null });
+    reset();
+  }, [texto, anexo, onPostar, reset, tituloEvento, dataEvento, horaEvento]);
 
 
   return (
@@ -88,12 +186,28 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
             <TouchableOpacity onPress={fechar} activeOpacity={0.7}><Ionicons name="close" size={24} color="#65676B" /></TouchableOpacity>
           </View>
           <ScrollView style={s.scrollBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <TextInput style={s.inputTexto} multiline placeholder="No que você está pensando?" placeholderTextColor="#B0B3B8" value={texto} onChangeText={setTexto} textAlignVertical="top" />
+            {/* Input de texto escondido para Evento, pois usamos campos específicos */}
+            {anexo.tipo !== 'evento' && (
+              <TextInput style={s.inputTexto} multiline placeholder="No que você está pensando?" placeholderTextColor="#B0B3B8" value={texto} onChangeText={setTexto} textAlignVertical="top" />
+            )}
             {renderAnexo()}
           </ScrollView>
           <View style={s.toolbar}>
-            <View style={s.iconesRow}>{[{ t: 'imagem', i: 'image-outline' }, { t: 'video', i: 'videocam-outline' }, { t: 'audio', i: 'mic-outline' }, { t: 'link', i: 'link-outline' }].map((item) => (<TouchableOpacity key={item.t} onPress={() => selTipo(item.t)} activeOpacity={0.7}><Ionicons name={item.i} size={26} color={anexo.tipo === item.t ? COLORS.primary : '#65676B'} /></TouchableOpacity>))}</View>
-            <TouchableOpacity style={[s.btnPostar, (!texto.trim() && !anexo.tipo) && s.btnPostarDisabled]} onPress={postar} activeOpacity={0.8} disabled={!texto.trim() && !anexo.tipo}><Text style={s.btnPostarTexto}>Publicar</Text></TouchableOpacity>
+            <View style={s.iconesRow}>
+              {[{ t: 'imagem', i: 'image-outline' }, { t: 'video', i: 'videocam-outline' }, { t: 'audio', i: 'mic-outline' }, { t: 'link', i: 'link-outline' }, { t: 'evento', i: 'calendar-outline' }].map((item) => (
+                <TouchableOpacity key={item.t} onPress={() => selTipo(item.t)} activeOpacity={0.7}>
+                  <Ionicons name={item.i} size={26} color={anexo.tipo === item.t ? COLORS.primary : '#65676B'} />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[s.btnPostar, (!texto.trim() && !anexo.tipo) && s.btnPostarDisabled]}
+              onPress={postar}
+              activeOpacity={0.8}
+              disabled={!texto.trim() && !anexo.tipo}
+            >
+              <Text style={s.btnPostarTexto}>Publicar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -126,4 +240,7 @@ const s = StyleSheet.create({
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderColor: '#E4E6EB', paddingTop: 12, marginTop: 4 },
   iconesRow: { flexDirection: 'row', gap: 20 }, btnPostar: { backgroundColor: COLORS.primary, paddingVertical: 10, paddingHorizontal: 24, borderRadius: 20 },
   btnPostarDisabled: { backgroundColor: '#B0B3B8' }, btnPostarTexto: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  // Estilos adicionais para inputs do evento
+  inputLabel: { fontSize: 13, fontWeight: '600', color: '#65676B', marginBottom: 6, marginTop: 4 },
+  input: { borderWidth: 1, borderColor: '#E4E6EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#050505', marginBottom: 10, backgroundColor: '#FFF' },
 });

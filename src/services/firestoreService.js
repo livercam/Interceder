@@ -24,6 +24,7 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
+import { getStorage, ref, deleteObject } from 'firebase/storage';
 import { COLLECTIONS, DENUNCIAS_LIMITE } from '../constants/firestore';
 import { enviarNotificacaoPush } from './notificationService';
 
@@ -837,6 +838,81 @@ export const aprovarSolicitacaoCelula = async (celulaId, solicitanteUid, aprovar
 };
 
 /**
+ * Fixa uma postagem no topo do feed da célula.
+ * Apenas UMA postagem pode estar fixada por vez — o campo post_fixado_id
+ * é atualizado diretamente no documento da célula.
+ *
+ * @param {string} celulaId - ID da célula
+ * @param {string} postId - ID do conteúdo de ensino a fixar
+ */
+export const fixarConteudoEnsino = async (celulaId, postId) => {
+  await updateDoc(doc(db, COLLECTIONS.CELULAS, celulaId), {
+    post_fixado_id: postId,
+  });
+};
+
+/**
+ * Alterna o interesse (RSVP) de um usuário em um evento de célula.
+ * Como os eventos são serializados como JSON no campo mensagem dentro do array
+ * conteudos_ensino, esta função lê o array atual, encontra o item pelo postId,
+ * atualiza o array interessados_ids no JSON e salva o array completo de volta.
+ *
+ * @param {string} celulaId - ID da célula
+ * @param {string} postId - ID do conteúdo de ensino (evento)
+ * @param {string} userId - UID do usuário
+ * @returns {Promise<boolean>} - true se adicionou interesse, false se removeu
+ */
+export const toggleInteresseEvento = async (celulaId, postId, userId) => {
+  const celulaRef = doc(db, COLLECTIONS.CELULAS, celulaId);
+  const celulaSnap = await getDoc(celulaRef);
+
+  if (!celulaSnap.exists()) {
+    throw new Error('Célula não encontrada.');
+  }
+
+  const celula = celulaSnap.data();
+  const conteudos = celula.conteudos_ensino || [];
+  const index = conteudos.findIndex((c) => c.id === postId);
+
+  if (index === -1) {
+    throw new Error('Conteúdo não encontrado.');
+  }
+
+  const conteudo = conteudos[index];
+  let dadosEvento;
+
+  try {
+    dadosEvento = JSON.parse(conteudo.mensagem || '{}');
+  } catch (e) {
+    throw new Error('Conteúdo não é um evento válido.');
+  }
+
+  if (!dadosEvento.titulo_evento) {
+    throw new Error('Conteúdo não é um evento.');
+  }
+
+  const interessados = dadosEvento.interessados_ids || [];
+  const jaTemInteresse = interessados.includes(userId);
+
+  if (jaTemInteresse) {
+    dadosEvento.interessados_ids = interessados.filter((id) => id !== userId);
+  } else {
+    dadosEvento.interessados_ids = [...interessados, userId];
+  }
+
+  conteudos[index] = {
+    ...conteudo,
+    mensagem: JSON.stringify(dadosEvento),
+  };
+
+  await updateDoc(celulaRef, {
+    conteudos_ensino: conteudos,
+  });
+
+  return !jaTemInteresse;
+};
+
+/**
  * Adiciona um novo conteúdo de ensino ao array conteudos_ensino da célula.
  * Cada conteúdo é um objeto com id, titulo, mensagem, link_externo e criadoEm.
  *
@@ -980,12 +1056,55 @@ export const buscarUsuariosPorUsername = async (termo) => {
 
 /**
  * Remove um conteúdo de ensino do array conteudos_ensino da célula.
- * Usa arrayRemove para deletar o objeto exato do array no Firestore.
+ * Antes de excluir do Firestore, varre as URLs armazenadas nos campos
+ * link_externo e mensagem (JSON de evento) e apaga os arquivos do
+ * Firebase Storage para evitar arquivos órfãos.
  *
  * @param {string} celulaId - ID da célula
  * @param {object} conteudoItem - O objeto completo do conteúdo a ser removido
  */
 export const removerConteudoEnsino = async (celulaId, conteudoItem) => {
+  // ============================================================
+  // LIMPEZA DO STORAGE: apagar arquivos órfãos
+  // ============================================================
+  try {
+    const storage = getStorage();
+    const urlsParaApagar = [];
+
+    // 1. Verifica link_externo (fotos normais, áudios, etc.)
+    if (conteudoItem.link_externo && conteudoItem.link_externo.includes('firebasestorage.googleapis.com')) {
+      urlsParaApagar.push(conteudoItem.link_externo);
+    }
+
+    // 2. Verifica mensagem JSON (eventos com capa_evento_url)
+    try {
+      const parsedMsg = JSON.parse(conteudoItem.mensagem || '{}');
+      if (parsedMsg.capa_evento_url && parsedMsg.capa_evento_url.includes('firebasestorage.googleapis.com')) {
+        urlsParaApagar.push(parsedMsg.capa_evento_url);
+      }
+    } catch (e) {
+      // Não é JSON, ignorar
+    }
+
+    // 3. Deleta cada arquivo encontrado (com try/catch individual para resiliência)
+    for (const url of urlsParaApagar) {
+      try {
+        const arquivoRef = ref(storage, url);
+        await deleteObject(arquivoRef);
+        console.log('[Storage] Arquivo deletado com sucesso:', url);
+      } catch (storageError) {
+        // Se o arquivo já não existir (404), apenas loga warning
+        console.warn('[Storage] Erro ao deletar arquivo (pode já ter sido apagado):', storageError.message);
+      }
+    }
+  } catch (error) {
+    // Falha na limpeza do Storage não deve impedir a exclusão do Firestore
+    console.warn('[Storage] Erro ao processar remoção de arquivos:', error.message);
+  }
+
+  // ============================================================
+  // EXCLUSÃO DO FIRESTORE (lógica original)
+  // ============================================================
   await updateDoc(doc(db, COLLECTIONS.CELULAS, celulaId), {
     conteudos_ensino: arrayRemove(conteudoItem),
   });
