@@ -757,11 +757,15 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                   }
                 } catch (e) { /* não é JSON, ignorar */ }
 
+                // Identificar autor real da postagem
+                const autorId = conteudo.autor_id || celula?.lider_id;
+                const dadosAutor = membros.find(m => m.uid === autorId);
+
                 const postagemAdaptada = {
                   id: conteudo.id,
-                  autor_nome: user?.displayName || 'Líder',
-                  autor_foto_url: user?.photoURL || null,
-                  autor_id: user?.uid || '',
+                  autor_nome: dadosAutor?.nome || 'Líder',
+                  autor_foto_url: dadosAutor?.foto_url || dadosAutor?.photoURL || null,
+                  autor_id: autorId || '',
                   createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
                   texto: textoPostagem,
                   tipo_postagem: isEvento ? 'evento' : tipoIcone,
@@ -774,6 +778,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                     key={conteudo.id}
                     postagem={postagemAdaptada}
                     userId={user?.uid}
+                    podeGerenciar={podeGerenciar}
                     isFixado={conteudo.id === celula?.post_fixado_id}
                     onFixar={() => handleFixarPostagem(conteudo.id)}
                     onToggleInteresse={isEvento ? () => handleToggleInteresse(conteudo.id) : undefined}
@@ -851,11 +856,15 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                   if (parsed && parsed.titulo_evento !== undefined) dadosEvento = parsed;
                 } catch (e) {}
 
+                // Identificar autor real da postagem
+                const autorId = conteudo.autor_id || celula?.lider_id;
+                const dadosAutorEvento = membros.find(m => m.uid === autorId);
+
                 const postagemAdaptada = {
                   id: conteudo.id,
-                  autor_nome: user?.displayName || 'Líder',
-                  autor_foto_url: user?.photoURL || null,
-                  autor_id: user?.uid || '',
+                  autor_nome: dadosAutorEvento?.nome || 'Líder',
+                  autor_foto_url: dadosAutorEvento?.foto_url || dadosAutorEvento?.photoURL || null,
+                  autor_id: autorId || '',
                   createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
                   texto: textoPostagem,
                   tipo_postagem: 'evento',
@@ -866,6 +875,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                     key={conteudo.id}
                     postagem={postagemAdaptada}
                     userId={user?.uid}
+                    podeGerenciar={podeGerenciar}
                     isFixado={conteudo.id === celula?.post_fixado_id}
                     onFixar={() => handleFixarPostagem(conteudo.id)}
                     onToggleInteresse={() => handleToggleInteresse(conteudo.id)}

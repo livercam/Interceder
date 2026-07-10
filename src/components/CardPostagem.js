@@ -172,7 +172,7 @@ const CardEventoBanner = ({ postagem, isFixado, userId, onToggleInteresse }) => 
   );
 };
 
-export default function CardPostagem({ postagem, userId, isFixado, onFixar, onToggleInteresse, onPressPerfil, onLike, onComment, onShare, onEditar, onExcluir }) {
+export default function CardPostagem({ postagem, userId, podeGerenciar, isFixado, onFixar, onToggleInteresse, onPressPerfil, onLike, onComment, onShare, onEditar, onExcluir }) {
   const { autor_nome, autor_foto_url, autor_id, createdAt, tipo_postagem } = postagem;
   const ehAutor = userId && autor_id && userId === autor_id;
   const ehEvento = tipo_postagem === 'evento';
@@ -183,8 +183,11 @@ export default function CardPostagem({ postagem, userId, isFixado, onFixar, onTo
   const abrirMenu = () => {
     const ops = [];
     ops.push({ texto: `📌 ${isFixado ? 'Desfixar' : 'Fixar'}`, aoPressionar: () => onFixar?.(postagem.id) });
+    // Editar temporariamente desabilitado por decisão da administração
+    // if (ehAutor) {
+    //   ops.push({ texto: '✏️ Editar', aoPressionar: () => onEditar?.(postagem) });
+    // }
     if (ehAutor) {
-      ops.push({ texto: '✏️ Editar', aoPressionar: () => onEditar?.(postagem) });
       ops.push({ texto: '🗑️ Excluir', destrutivo: true, aoPressionar: () => onExcluir?.(postagem) });
     }
     ops.push({ texto: '✕ Cancelar', aoPressionar: () => {} });
@@ -199,9 +202,12 @@ export default function CardPostagem({ postagem, userId, isFixado, onFixar, onTo
       {ehEvento ? (
         <>
           <CardEventoBanner postagem={postagem} isFixado={isFixado} userId={userId} onToggleInteresse={onToggleInteresse} />
-          <TouchableOpacity style={s.eventoKebab} onPress={abrirMenu} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="ellipsis-horizontal" size={20} color="#65676B" />
-          </TouchableOpacity>
+          {/* Kebab menu visível apenas para líder/co-líder */}
+          {podeGerenciar && (
+            <TouchableOpacity style={s.eventoKebab} onPress={abrirMenu} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="ellipsis-horizontal" size={20} color="#65676B" />
+            </TouchableOpacity>
+          )}
         </>
       ) : (
         <>
@@ -225,9 +231,12 @@ export default function CardPostagem({ postagem, userId, isFixado, onFixar, onTo
                 <Text style={s.postTime}>{getTempoRelativo(createdAt)}</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={abrirMenu} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#65676B" />
-            </TouchableOpacity>
+            {/* Kebab menu visível apenas para líder/co-líder */}
+            {podeGerenciar && (
+              <TouchableOpacity onPress={abrirMenu} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="ellipsis-horizontal" size={20} color="#65676B" />
+              </TouchableOpacity>
+            )}
           </View>
           <MioloPostagem postagem={postagem} isFixado={isFixado} />
           <View style={s.cardFooter}>
