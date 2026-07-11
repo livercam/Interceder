@@ -21,7 +21,6 @@ import { uploadAsync } from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import FeedAudio from '../components/FeedAudio';
-import FeedImagem from '../components/FeedImagem';
 import GravadorAudio from '../components/GravadorAudio';
 import {
   enviarMensagemChat,
@@ -269,10 +268,14 @@ export default function Chat1x1Screen({ route }) {
           )}
           {temImagem && (
             <View style={styles.imagemBalaoContainer}>
-              <FeedImagem imagemUrl={item.imagem_url} />
+              <Image source={{ uri: item.imagem_url }} style={styles.imagemBalao} resizeMode="cover" />
             </View>
           )}
-          {temAudio && <FeedAudio audioUrl={item.audio_url} />}
+          {temAudio && (
+            <View style={styles.audioBalaoContainer}>
+              <FeedAudio audioUrl={item.audio_url} />
+            </View>
+          )}
           {item.texto ? (
             <Text style={[styles.balaoTexto, { color: ehMinha ? COLORS.white : COLORS.gray800 }]}>
               {item.texto}
@@ -433,12 +436,23 @@ const styles = StyleSheet.create({
   balaoTexto: { fontSize: FONTS.sizes.md, lineHeight: 20 },
   editadoTag: { fontSize: FONTS.sizes.xs, fontStyle: 'italic', marginTop: 2 },
 
-  // Container forçado para imagem no balão
+  // Imagem edge-to-edge no balão (sem moldura)
   imagemBalaoContainer: {
     width: 200,
     height: 200,
     borderRadius: 12,
     overflow: 'hidden',
+    marginBottom: SPACING.xs,
+  },
+  imagemBalao: {
+    width: '100%',
+    height: '100%',
+  },
+
+  // Container do player de áudio no balão (minimalista)
+  audioBalaoContainer: {
+    backgroundColor: 'transparent',
+    padding: 0,
     marginBottom: SPACING.xs,
   },
 
