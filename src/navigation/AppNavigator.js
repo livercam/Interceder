@@ -34,6 +34,7 @@ import NotificacoesScreen from '../screens/NotificacoesScreen';
 import NovaMensagemApoioScreen from '../screens/NovaMensagemApoioScreen';
 import GerenciarSolicitacoesScreen from '../screens/GerenciarSolicitacoesScreen';
 import EditarCelulaScreen from '../screens/EditarCelulaScreen';
+import Chat1x1Screen from '../screens/Chat1x1Screen';
 import SuporteScreen from '../screens/SuporteScreen';
 import WebViewScreen from '../screens/WebViewScreen';
 import CustomSplashScreen from '../components/CustomSplashScreen';
@@ -512,6 +513,17 @@ export default function AppNavigator() {
               }}
             />
             
+            <Stack.Screen
+              name="Chat1x1"
+              component={Chat1x1Screen}
+              options={({ route }) => ({
+                headerShown: true,
+                headerTitle: route.params?.contatoNome || 'Chat',
+                headerStyle: styles.header,
+                headerTitleStyle: styles.headerTitle,
+                headerTintColor: COLORS.white,
+              })}
+            />
             <Stack.Screen
               name="Suporte"
               component={SuporteScreen}

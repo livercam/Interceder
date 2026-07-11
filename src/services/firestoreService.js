@@ -294,6 +294,69 @@ export const iniciarChat = async (meuUid, alvoUid, meusDados, alvoDados) => {
 };
 
 // ============================================================
+// MENSAGENS DO CHAT 1x1
+// ============================================================
+
+/**
+ * Envia uma mensagem e atualiza o resumo do chat em batch.
+ * Usa writeBatch para garantir atomicidade: mensagem + resumo do chat.
+ *
+ * @param {string} chatId - ID do chat
+ * @param {string} texto - Texto da mensagem
+ * @param {string} autorId - UID do autor
+ * @returns {Promise<string>} - ID da mensagem criada
+ */
+export const enviarMensagemChat = async (chatId, texto, autorId) => {
+  const batch = writeBatch(db);
+
+  // 1. Adiciona mensagem na subcoleção
+  const mensagensRef = collection(db, COLLECTIONS.CHATS, chatId, 'mensagens');
+  const novaMsgRef = doc(mensagensRef);
+  batch.set(novaMsgRef, {
+    texto: texto.trim(),
+    autor_id: autorId,
+    criadoEm: serverTimestamp(),
+  });
+
+  // 2. Atualiza resumo do chat
+  const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+  batch.update(chatRef, {
+    ultima_mensagem: texto.trim(),
+    timestamp_atualizacao: serverTimestamp(),
+  });
+
+  await batch.commit();
+  return novaMsgRef.id;
+};
+
+/**
+ * Escuta as mensagens de um chat em tempo real.
+ * Retorna ordenado por criadoEm decrescente para uso com FlatList inverted.
+ *
+ * @param {string} chatId - ID do chat
+ * @param {function} callback - Função chamada com a lista de mensagens
+ * @returns {function} - Função para cancelar a inscrição (unsubscribe)
+ */
+export const ouvirMensagensChat = (chatId, callback) => {
+  const q = query(
+    collection(db, COLLECTIONS.CHATS, chatId, 'mensagens'),
+    orderBy('criadoEm', 'desc'),
+    limit(100)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const mensagens = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    callback(mensagens);
+  }, (error) => {
+    console.warn('[ouvirMensagensChat] Erro:', error.message);
+    callback([]);
+  });
+};
+
+// ============================================================
 // PEDIDOS DE ORAÇÃO
 // ============================================================
 
