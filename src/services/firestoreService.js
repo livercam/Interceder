@@ -471,19 +471,29 @@ export const ouvirMeusChats = (meuUid, callback) => {
  */
 export const marcarMensagensComoLidas = async (chatId, meuUid) => {
   try {
+    console.log('[marcarMensagensComoLidas] Iniciando chat:', chatId, 'usuario:', meuUid);
+    // Busca TODAS as mensagens nao lidas (sem filtrar por autor_id, pois o != requer indice composto)
     const q = query(
       collection(db, COLLECTIONS.CHATS, chatId, 'mensagens'),
       where('lida', '==', false),
-      where('autor_id', '!=', meuUid),
       limit(50)
     );
     const snapshot = await getDocs(q);
+    console.log('[marcarMensagensComoLidas] Nao lidas encontradas:', snapshot.size);
 
-    if (snapshot.empty) return;
+    if (snapshot.empty) {
+      // Mesmo sem mensagens, marca o chat como lido
+      await updateDoc(doc(db, COLLECTIONS.CHATS, chatId), { ultima_mensagem_lida: true });
+      return;
+    }
 
     const batch = writeBatch(db);
     snapshot.forEach((docSnap) => {
-      batch.update(docSnap.ref, { lida: true });
+      const msg = docSnap.data();
+      // So marca como lida se nao for do proprio usuario
+      if (msg.autor_id !== meuUid) {
+        batch.update(docSnap.ref, { lida: true, status: 'visualizado' });
+      }
     });
 
     // Marca o chat pai como lido
@@ -491,6 +501,7 @@ export const marcarMensagensComoLidas = async (chatId, meuUid) => {
     batch.update(chatRef, { ultima_mensagem_lida: true });
 
     await batch.commit();
+    console.log('[marcarMensagensComoLidas] Commit realizado');
   } catch (error) {
     console.warn('[marcarMensagensComoLidas] Erro:', error.message);
   }
