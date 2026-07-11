@@ -38,18 +38,18 @@ export default function CustomAlert({
 }) {
   if (!visible) return null;
 
-  // Separar buttons por tipo para ordenar: destrutivo no fundo
-  const primaryBtn = buttons.find((b) => b.type === 'default' || !b.type);
+  // Separar buttons por tipo para ordenar: todos os default/undefined primeiro, depois destructive, depois cancel
+  const botoesDefault = buttons.filter((b) => b.type === 'default' || !b.type);
   const cancelBtn = buttons.find((b) => b.type === 'cancel');
-  const destructiveBtn = buttons.find((b) => b.type === 'destructive');
+  const destructiveBtns = buttons.filter((b) => b.type === 'destructive');
   const outros = buttons.filter(
     (b) => b.type !== 'default' && b.type !== 'cancel' && b.type !== 'destructive' && b.type !== undefined
   );
 
   const orderedButtons = [
-    ...(primaryBtn ? [primaryBtn] : []),
+    ...botoesDefault,
     ...outros,
-    ...(destructiveBtn ? [destructiveBtn] : []),
+    ...destructiveBtns,
     ...(cancelBtn ? [cancelBtn] : []),
   ];
 
