@@ -306,16 +306,25 @@ export const iniciarChat = async (meuUid, alvoUid, meusDados, alvoDados) => {
  * @param {string} autorId - UID do autor
  * @returns {Promise<string>} - ID da mensagem criada
  */
-export const enviarMensagemChat = async (chatId, texto, autorId, mensagemRespondida = null) => {
+export const enviarMensagemChat = async (chatId, texto, autorId, mensagemRespondida = null, imagem_url = null, audio_url = null) => {
   const batch = writeBatch(db);
 
   // 1. Monta dados da mensagem
+  const textoLimpo = texto ? texto.trim() : '';
   const dadosMensagem = {
-    texto: texto.trim(),
+    texto: textoLimpo,
     autor_id: autorId,
     criadoEm: serverTimestamp(),
     lida: false,
   };
+
+  if (imagem_url) {
+    dadosMensagem.imagem_url = imagem_url;
+  }
+
+  if (audio_url) {
+    dadosMensagem.audio_url = audio_url;
+  }
 
   // Se for resposta para outra mensagem, adiciona reply_to
   if (mensagemRespondida) {
@@ -332,9 +341,10 @@ export const enviarMensagemChat = async (chatId, texto, autorId, mensagemRespond
   batch.set(novaMsgRef, dadosMensagem);
 
   // 3. Atualiza resumo do chat (com flag de nao lida para o destinatario)
+  const resumo = textoLimpo || (imagem_url ? '📷 Foto' : '') || (audio_url ? '🎤 Áudio' : '');
   const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
   batch.update(chatRef, {
-    ultima_mensagem: texto.trim(),
+    ultima_mensagem: resumo,
     ultima_mensagem_lida: false,
     timestamp_atualizacao: serverTimestamp(),
   });

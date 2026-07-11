@@ -1,6 +1,6 @@
 // Tela de Chat 1x1 - Mensagens Diretas Nativas
 // Sem bibliotecas externas: FlatList, KeyboardAvoidingView, onSnapshot
-// Funcionalidades: enviar, editar, excluir, responder, baloes estilo WhatsApp/Telegram
+// Funcionalidades: enviar, editar, excluir, responder, fotos, áudios
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -14,10 +14,16 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { uploadAsync } from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import FeedAudio from '../components/FeedAudio';
+import FeedImagem from '../components/FeedImagem';
+import GravadorAudio from '../components/GravadorAudio';
 import {
   enviarMensagemChat,
   ouvirMensagensChat,
@@ -38,6 +44,8 @@ export default function Chat1x1Screen({ route }) {
   const [enviando, setEnviando] = useState(false);
   const [mensagemEmEdicao, setMensagemEmEdicao] = useState(null);
   const [mensagemEmResposta, setMensagemEmResposta] = useState(null);
+  const [mostrarMidia, setMostrarMidia] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Escuta mensagens em tempo real e marca como lidas ao abrir
   useEffect(() => {
@@ -45,7 +53,6 @@ export default function Chat1x1Screen({ route }) {
       setMensagens(msgs);
     });
 
-    // Marca mensagens como lidas ao entrar no chat
     if (currentUser) {
       marcarMensagensComoLidas(chatId, currentUser.uid);
     }
@@ -66,63 +73,102 @@ export default function Chat1x1Screen({ route }) {
     setMensagemEmResposta(null);
   }, []);
 
+  // Upload de imagem e envio
+  const handleAdicionarImagem = useCallback(async () => {
+    Alert.alert('Adicionar imagem', 'Escolha:', [
+      {
+        text: '📷 Câmera',
+        onPress: async () => {
+          const p = await ImagePicker.requestCameraPermissionsAsync();
+          if (!p.granted) { Alert.alert('', 'Precisamos da câmera.'); return; }
+          const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+          if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+        },
+      },
+      {
+        text: '🖼️ Galeria',
+        onPress: async () => {
+          const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!p.granted) { Alert.alert('', 'Precisamos da galeria.'); return; }
+          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+          if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+        },
+      },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }, []);
+
+  const uploadEEnviarImagem = async (uri) => {
+    setUploading(true);
+    try {
+      const token = await currentUser.getIdToken();
+      const nome = `img_${Date.now()}.jpg`;
+      const urlUp = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=chat_imagens%2F${chatId}%2F${nome}`;
+      await uploadAsync(urlUp, uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' } });
+      const urlF = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/chat_imagens%2F${chatId}%2F${nome}?alt=media`;
+      await enviarMensagemChat(chatId, '', currentUser.uid, null, urlF, null);
+      setMostrarMidia(false);
+    } catch (error) {
+      Alert.alert('Erro', error.message || 'Falha ao enviar imagem.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Callback do GravadorAudio
+  const handleAudioPronto = useCallback(async (dados) => {
+    try {
+      await enviarMensagemChat(chatId, '', currentUser.uid, null, null, dados.uri);
+      setMostrarMidia(false);
+    } catch (error) {
+      Alert.alert('Erro', error.message || 'Falha ao enviar áudio.');
+    }
+  }, [chatId, currentUser]);
+
   // Long Press no balao
   const handleLongPress = useCallback((item) => {
     const ehMinha = item.autor_id === currentUser?.uid;
+    // Só abrir menu se for mensagem de texto (pra editar/excluir)
+    if (item.imagem_url || item.audio_url) {
+      if (ehMinha) {
+        Alert.alert('Opções da Mensagem', undefined, [
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert('Excluir mensagem', 'Tem certeza?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Excluir', style: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { Alert.alert('Erro', error.message); } } },
+              ]);
+            },
+          },
+          { text: 'Cancelar', style: 'cancel' },
+        ]);
+      }
+      return;
+    }
 
     const opcoes = [
       {
         text: 'Responder',
         onPress: () => {
-          // Resposta cancela edicao e vice-versa
           setMensagemEmEdicao(null);
-          setMensagemEmResposta({
-            id: item.id,
-            texto: item.texto,
-            autor_nome: ehMinha ? 'Você' : (contatoNome || 'Usuário'),
-          });
+          setMensagemEmResposta({ id: item.id, texto: item.texto, autor_nome: ehMinha ? 'Você' : (contatoNome || 'Usuário') });
           inputRef.current?.focus();
         },
       },
     ];
 
     if (ehMinha) {
-      opcoes.push({
-        text: 'Editar',
-        onPress: () => {
-          setMensagemEmResposta(null);
-          setMensagemEmEdicao({ id: item.id, texto: item.texto });
-          setTexto(item.texto);
-          inputRef.current?.focus();
-        },
-      });
-      opcoes.push({
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: () => {
-          Alert.alert('Excluir mensagem', 'Tem certeza que deseja excluir esta mensagem?', [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Excluir',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await excluirMensagemChat(chatId, item.id);
-                } catch (error) {
-                  Alert.alert('Erro', error.message || 'Não foi possível excluir.');
-                }
-              },
-            },
-          ]);
-        },
-      });
+      opcoes.push({ text: 'Editar', onPress: () => { setMensagemEmResposta(null); setMensagemEmEdicao({ id: item.id, texto: item.texto }); setTexto(item.texto); inputRef.current?.focus(); } });
+      opcoes.push({ text: 'Excluir', style: 'destructive', onPress: () => { Alert.alert('Excluir mensagem', 'Tem certeza?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Excluir', style: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { Alert.alert('Erro', error.message); } } }]); } });
     }
 
     opcoes.push({ text: 'Cancelar', style: 'cancel' });
     Alert.alert('Opções da Mensagem', undefined, opcoes);
   }, [currentUser, chatId, contatoNome]);
 
-  // Envia ou edita mensagem
+  // Envia mensagem de texto
   const handleEnviar = useCallback(async () => {
     const textoTrim = texto.trim();
     if (!textoTrim || enviando) return;
@@ -133,7 +179,7 @@ export default function Chat1x1Screen({ route }) {
         await editarMensagemChat(chatId, mensagemEmEdicao.id, textoTrim);
         cancelarEdicao();
       } else {
-        await enviarMensagemChat(chatId, textoTrim, currentUser.uid, mensagemEmResposta);
+        await enviarMensagemChat(chatId, textoTrim, currentUser.uid, mensagemEmResposta, null, null);
         setTexto('');
         setMensagemEmResposta(null);
       }
@@ -149,23 +195,17 @@ export default function Chat1x1Screen({ route }) {
     const ehMinha = item.autor_id === currentUser?.uid;
     const foiEditada = !!item.editadoEm;
     const temReply = !!item.reply_to;
+    const temImagem = !!item.imagem_url;
+    const temAudio = !!item.audio_url;
 
     return (
       <TouchableOpacity
         activeOpacity={0.7}
         onLongPress={() => handleLongPress(item)}
         delayLongPress={400}
-        style={[
-          styles.balaoContainer,
-          ehMinha ? styles.balaoMinha : styles.balaoOutro,
-        ]}
+        style={[styles.balaoContainer, ehMinha ? styles.balaoMinha : styles.balaoOutro]}
       >
-        <View
-          style={[
-            styles.balao,
-            ehMinha ? styles.balaoMinhaFundo : styles.balaoOutroFundo,
-          ]}
-        >
+        <View style={[styles.balao, ehMinha ? styles.balaoMinhaFundo : styles.balaoOutroFundo]}>
           {/* Mensagem respondida (reply) */}
           {temReply && (
             <View style={styles.replyContainer}>
@@ -174,25 +214,26 @@ export default function Chat1x1Screen({ route }) {
                 <Text style={[styles.replyAutor, { color: ehMinha ? COLORS.white : COLORS.primary }]}>
                   {item.reply_to.autor_nome}
                 </Text>
-                <Text
-                  style={[styles.replyTexto, { color: ehMinha ? 'rgba(255,255,255,0.8)' : COLORS.gray500 }]}
-                  numberOfLines={2}
-                >
+                <Text style={[styles.replyTexto, { color: ehMinha ? 'rgba(255,255,255,0.8)' : COLORS.gray500 }]} numberOfLines={2}>
                   {item.reply_to.texto}
                 </Text>
               </View>
             </View>
           )}
 
-          {/* Texto principal */}
-          <Text
-            style={[
-              styles.balaoTexto,
-              { color: ehMinha ? COLORS.white : COLORS.gray800 },
-            ]}
-          >
-            {item.texto}
-          </Text>
+          {/* Imagem */}
+          {temImagem && <FeedImagem imagemUrl={item.imagem_url} />}
+
+          {/* Áudio */}
+          {temAudio && <FeedAudio audioUrl={item.audio_url} />}
+
+          {/* Texto */}
+          {item.texto ? (
+            <Text style={[styles.balaoTexto, { color: ehMinha ? COLORS.white : COLORS.gray800 }]}>
+              {item.texto}
+            </Text>
+          ) : null}
+
           {foiEditada && (
             <Text style={[styles.editadoTag, { color: ehMinha ? 'rgba(255,255,255,0.7)' : COLORS.gray400 }]}>
               (editado)
@@ -211,6 +252,14 @@ export default function Chat1x1Screen({ route }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
     >
+      {/* Indicador de upload */}
+      {uploading && (
+        <View style={styles.uploadingBar}>
+          <ActivityIndicator size="small" color={COLORS.white} />
+          <Text style={styles.uploadingText}>Enviando mídia...</Text>
+        </View>
+      )}
+
       {/* Lista de Mensagens */}
       <FlatList
         data={mensagens}
@@ -261,8 +310,22 @@ export default function Chat1x1Screen({ route }) {
           </View>
         )}
 
+        {/* Gravador de Áudio / Seletor de Imagem */}
+        {mostrarMidia && !uploading && (
+          <View style={styles.midiaContainer}>
+            <GravadorAudio onAudioReady={handleAudioPronto} onRemove={() => setMostrarMidia(false)} />
+            <TouchableOpacity style={styles.btnAnexarImagem} onPress={handleAdicionarImagem} activeOpacity={0.7}>
+              <Ionicons name="image-outline" size={22} color={COLORS.primary} />
+              <Text style={styles.btnAnexarTexto}>Adicionar imagem</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Input row */}
         <View style={styles.inputRow}>
+          <TouchableOpacity style={styles.btnAnexo} onPress={() => setMostrarMidia(!mostrarMidia)} activeOpacity={0.7}>
+            <Ionicons name={mostrarMidia ? 'close' : 'add-circle-outline'} size={24} color={COLORS.gray500} />
+          </TouchableOpacity>
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -296,6 +359,21 @@ const styles = StyleSheet.create({
   listaContent: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
+  },
+
+  // Uploading bar
+  uploadingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.xs,
+    gap: SPACING.sm,
+  },
+  uploadingText: {
+    color: COLORS.white,
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '600',
   },
 
   // Baloes
@@ -433,10 +511,42 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '600',
   },
+
+  // Container de mídia (áudio + imagem)
+  midiaContainer: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  btnAnexarImagem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary + '08',
+    borderRadius: RADIUS.full,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary + '30',
+  },
+  btnAnexarTexto: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+
   inputRow: {
     flexDirection: 'row',
     padding: SPACING.sm,
     alignItems: 'flex-end',
+  },
+  btnAnexo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.xs,
   },
   input: {
     flex: 1,
