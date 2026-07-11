@@ -13,8 +13,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,10 +30,12 @@ import {
   marcarMensagensComoLidas,
 } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../contexts/AlertContext';
 
 export default function Chat1x1Screen({ route }) {
   const { chatId, contatoNome } = route.params;
   const { user: currentUser } = useAuth();
+  const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   const inputRef = useRef(null);
 
@@ -75,27 +75,38 @@ export default function Chat1x1Screen({ route }) {
 
   // Upload de imagem e envio
   const handleAdicionarImagem = useCallback(async () => {
-    Alert.alert('Adicionar imagem', 'Escolha:', [
-      {
-        text: '📷 Câmera',
-        onPress: async () => {
-          const p = await ImagePicker.requestCameraPermissionsAsync();
-          if (!p.granted) { Alert.alert('', 'Precisamos da câmera.'); return; }
-          const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
-          if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+    showAlert({
+      title: 'Adicionar imagem',
+      buttons: [
+        {
+          text: '📷 Câmera',
+          type: 'default',
+          onPress: async () => {
+            const p = await ImagePicker.requestCameraPermissionsAsync();
+            if (!p.granted) {
+              showAlert({ title: 'Permissão necessária', message: 'Precisamos da câmera.', buttons: [{ text: 'OK', type: 'default' }] });
+              return;
+            }
+            const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+            if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+          },
         },
-      },
-      {
-        text: '🖼️ Galeria',
-        onPress: async () => {
-          const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!p.granted) { Alert.alert('', 'Precisamos da galeria.'); return; }
-          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
-          if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+        {
+          text: '🖼️ Galeria',
+          type: 'default',
+          onPress: async () => {
+            const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!p.granted) {
+              showAlert({ title: 'Permissão necessária', message: 'Precisamos da galeria.', buttons: [{ text: 'OK', type: 'default' }] });
+              return;
+            }
+            const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+            if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+          },
         },
-      },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+        { text: 'Cancelar', type: 'cancel' },
+      ],
+    });
   }, []);
 
   const uploadEEnviarImagem = async (uri) => {
@@ -109,7 +120,7 @@ export default function Chat1x1Screen({ route }) {
       await enviarMensagemChat(chatId, '', currentUser.uid, null, urlF, null);
       setMostrarMidia(false);
     } catch (error) {
-      Alert.alert('Erro', error.message || 'Falha ao enviar imagem.');
+      showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar imagem.', buttons: [{ text: 'OK', type: 'default' }] });
     } finally {
       setUploading(false);
     }
@@ -121,29 +132,36 @@ export default function Chat1x1Screen({ route }) {
       await enviarMensagemChat(chatId, '', currentUser.uid, null, null, dados.uri);
       setMostrarMidia(false);
     } catch (error) {
-      Alert.alert('Erro', error.message || 'Falha ao enviar áudio.');
+      showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar áudio.', buttons: [{ text: 'OK', type: 'default' }] });
     }
   }, [chatId, currentUser]);
 
   // Long Press no balao
   const handleLongPress = useCallback((item) => {
     const ehMinha = item.autor_id === currentUser?.uid;
-    // Só abrir menu se for mensagem de texto (pra editar/excluir)
+
     if (item.imagem_url || item.audio_url) {
       if (ehMinha) {
-        Alert.alert('Opções da Mensagem', undefined, [
-          {
-            text: 'Excluir',
-            style: 'destructive',
-            onPress: () => {
-              Alert.alert('Excluir mensagem', 'Tem certeza?', [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Excluir', style: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { Alert.alert('Erro', error.message); } } },
-              ]);
+        showAlert({
+          title: 'Opções da Mensagem',
+          buttons: [
+            {
+              text: 'Excluir',
+              type: 'destructive',
+              onPress: () => {
+                showAlert({
+                  title: 'Excluir mensagem',
+                  message: 'Tem certeza?',
+                  buttons: [
+                    { text: 'Cancelar', type: 'cancel' },
+                    { text: 'Excluir', type: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { showAlert({ title: 'Erro', message: error.message, buttons: [{ text: 'OK', type: 'default' }] }); } } },
+                  ],
+                });
+              },
             },
-          },
-          { text: 'Cancelar', style: 'cancel' },
-        ]);
+            { text: 'Cancelar', type: 'cancel' },
+          ],
+        });
       }
       return;
     }
@@ -151,6 +169,7 @@ export default function Chat1x1Screen({ route }) {
     const opcoes = [
       {
         text: 'Responder',
+        type: 'default',
         onPress: () => {
           setMensagemEmEdicao(null);
           setMensagemEmResposta({ id: item.id, texto: item.texto, autor_nome: ehMinha ? 'Você' : (contatoNome || 'Usuário') });
@@ -160,13 +179,30 @@ export default function Chat1x1Screen({ route }) {
     ];
 
     if (ehMinha) {
-      opcoes.push({ text: 'Editar', onPress: () => { setMensagemEmResposta(null); setMensagemEmEdicao({ id: item.id, texto: item.texto }); setTexto(item.texto); inputRef.current?.focus(); } });
-      opcoes.push({ text: 'Excluir', style: 'destructive', onPress: () => { Alert.alert('Excluir mensagem', 'Tem certeza?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Excluir', style: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { Alert.alert('Erro', error.message); } } }]); } });
+      opcoes.push({
+        text: 'Editar',
+        type: 'default',
+        onPress: () => { setMensagemEmResposta(null); setMensagemEmEdicao({ id: item.id, texto: item.texto }); setTexto(item.texto); inputRef.current?.focus(); },
+      });
+      opcoes.push({
+        text: 'Excluir',
+        type: 'destructive',
+        onPress: () => {
+          showAlert({
+            title: 'Excluir mensagem',
+            message: 'Tem certeza?',
+            buttons: [
+              { text: 'Cancelar', type: 'cancel' },
+              { text: 'Excluir', type: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { showAlert({ title: 'Erro', message: error.message, buttons: [{ text: 'OK', type: 'default' }] }); } } },
+            ],
+          });
+        },
+      });
     }
 
-    opcoes.push({ text: 'Cancelar', style: 'cancel' });
-    Alert.alert('Opções da Mensagem', undefined, opcoes);
-  }, [currentUser, chatId, contatoNome]);
+    opcoes.push({ text: 'Cancelar', type: 'cancel' });
+    showAlert({ title: 'Opções da Mensagem', buttons: opcoes });
+  }, [currentUser, chatId, contatoNome, showAlert]);
 
   // Envia mensagem de texto
   const handleEnviar = useCallback(async () => {
@@ -179,16 +215,16 @@ export default function Chat1x1Screen({ route }) {
         await editarMensagemChat(chatId, mensagemEmEdicao.id, textoTrim);
         cancelarEdicao();
       } else {
-        await enviarMensagemChat(chatId, textoTrim, currentUser.uid, mensagemEmResposta, null, null);
+        await enviarMensagemChat(chatId, textoTrim, currentUser.uid, mensagemEmResposta);
         setTexto('');
         setMensagemEmResposta(null);
       }
     } catch (error) {
-      Alert.alert('Erro', error.message || 'Não foi possível enviar a mensagem.');
+      showAlert({ title: 'Erro', message: error.message || 'Não foi possível enviar.', buttons: [{ text: 'OK', type: 'default' }] });
     } finally {
       setEnviando(false);
     }
-  }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, mensagemEmResposta, cancelarEdicao]);
+  }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, mensagemEmResposta, cancelarEdicao, showAlert]);
 
   // Renderiza cada mensagem
   const renderMensagem = useCallback(({ item }) => {
@@ -206,7 +242,6 @@ export default function Chat1x1Screen({ route }) {
         style={[styles.balaoContainer, ehMinha ? styles.balaoMinha : styles.balaoOutro]}
       >
         <View style={[styles.balao, ehMinha ? styles.balaoMinhaFundo : styles.balaoOutroFundo]}>
-          {/* Mensagem respondida (reply) */}
           {temReply && (
             <View style={styles.replyContainer}>
               <View style={styles.replyBar} />
@@ -220,20 +255,13 @@ export default function Chat1x1Screen({ route }) {
               </View>
             </View>
           )}
-
-          {/* Imagem */}
           {temImagem && <FeedImagem imagemUrl={item.imagem_url} />}
-
-          {/* Áudio */}
           {temAudio && <FeedAudio audioUrl={item.audio_url} />}
-
-          {/* Texto */}
           {item.texto ? (
             <Text style={[styles.balaoTexto, { color: ehMinha ? COLORS.white : COLORS.gray800 }]}>
               {item.texto}
             </Text>
           ) : null}
-
           {foiEditada && (
             <Text style={[styles.editadoTag, { color: ehMinha ? 'rgba(255,255,255,0.7)' : COLORS.gray400 }]}>
               (editado)
@@ -252,7 +280,6 @@ export default function Chat1x1Screen({ route }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
     >
-      {/* Indicador de upload */}
       {uploading && (
         <View style={styles.uploadingBar}>
           <ActivityIndicator size="small" color={COLORS.white} />
@@ -260,7 +287,6 @@ export default function Chat1x1Screen({ route }) {
         </View>
       )}
 
-      {/* Lista de Mensagens */}
       <FlatList
         data={mensagens}
         keyExtractor={keyExtractor}
@@ -278,20 +304,13 @@ export default function Chat1x1Screen({ route }) {
         }
       />
 
-      {/* Area de Input com Safe Area (Android navigation bar) */}
       <View style={[styles.inputArea, { paddingBottom: Math.max(SPACING.sm, insets.bottom) }]}>
-        
-        {/* Preview de resposta */}
         {mensagemEmResposta && (
           <View style={styles.previewResposta}>
             <View style={styles.previewRespostaBar} />
             <View style={styles.previewRespostaContent}>
-              <Text style={styles.previewRespostaLabel}>
-                Respondendo a {mensagemEmResposta.autor_nome}
-              </Text>
-              <Text style={styles.previewRespostaTexto} numberOfLines={1}>
-                {mensagemEmResposta.texto}
-              </Text>
+              <Text style={styles.previewRespostaLabel}>Respondendo a {mensagemEmResposta.autor_nome}</Text>
+              <Text style={styles.previewRespostaTexto} numberOfLines={1}>{mensagemEmResposta.texto}</Text>
             </View>
             <TouchableOpacity onPress={cancelarResposta} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close-circle" size={20} color={COLORS.gray500} />
@@ -299,7 +318,6 @@ export default function Chat1x1Screen({ route }) {
           </View>
         )}
 
-        {/* Indicador de modo edicao */}
         {mensagemEmEdicao && (
           <View style={styles.editandoBar}>
             <Ionicons name="create-outline" size={16} color={COLORS.primary} />
@@ -310,7 +328,6 @@ export default function Chat1x1Screen({ route }) {
           </View>
         )}
 
-        {/* Gravador de Áudio / Seletor de Imagem */}
         {mostrarMidia && !uploading && (
           <View style={styles.midiaContainer}>
             <GravadorAudio onAudioReady={handleAudioPronto} onRemove={() => setMostrarMidia(false)} />
@@ -321,7 +338,6 @@ export default function Chat1x1Screen({ route }) {
           </View>
         )}
 
-        {/* Input row */}
         <View style={styles.inputRow}>
           <TouchableOpacity style={styles.btnAnexo} onPress={() => setMostrarMidia(!mostrarMidia)} activeOpacity={0.7}>
             <Ionicons name={mostrarMidia ? 'close' : 'add-circle-outline'} size={24} color={COLORS.gray500} />
@@ -356,218 +372,39 @@ export default function Chat1x1Screen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  listaContent: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-
-  // Uploading bar
-  uploadingBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.xs,
-    gap: SPACING.sm,
-  },
-  uploadingText: {
-    color: COLORS.white,
-    fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
-  },
-
-  // Baloes
-  balaoContainer: {
-    marginBottom: SPACING.xs,
-    maxWidth: '80%',
-  },
-  balaoMinha: {
-    alignSelf: 'flex-end',
-  },
-  balaoOutro: {
-    alignSelf: 'flex-start',
-  },
-  balao: {
-    borderRadius: 16,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
-  balaoMinhaFundo: {
-    backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4,
-  },
-  balaoOutroFundo: {
-    backgroundColor: COLORS.white,
-    borderBottomLeftRadius: 4,
-  },
-  balaoTexto: {
-    fontSize: FONTS.sizes.md,
-    lineHeight: 20,
-  },
-  editadoTag: {
-    fontSize: FONTS.sizes.xs,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-
-  // Reply dentro do balao
-  replyContainer: {
-    flexDirection: 'row',
-    marginBottom: SPACING.xs,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 4,
-    padding: SPACING.xs,
-    overflow: 'hidden',
-  },
-  replyBar: {
-    width: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.primary,
-    marginRight: SPACING.sm,
-  },
-  replyContent: {
-    flex: 1,
-  },
-  replyAutor: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: 'bold',
-    marginBottom: 1,
-  },
-  replyTexto: {
-    fontSize: FONTS.sizes.xs,
-    fontStyle: 'italic',
-  },
-
-  // Empty
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: '600',
-    color: COLORS.gray400,
-    marginTop: SPACING.md,
-  },
-  emptySubtext: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.gray300,
-    marginTop: SPACING.xs,
-    textAlign: 'center',
-  },
-
-  // Input
-  inputArea: {
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.gray200,
-  },
-
-  // Preview de resposta
-  previewResposta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.gray50,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-    borderTopLeftRadius: RADIUS.md,
-    borderTopRightRadius: RADIUS.md,
-  },
-  previewRespostaBar: {
-    display: 'none',
-  },
-  previewRespostaContent: {
-    flex: 1,
-    marginRight: SPACING.sm,
-  },
-  previewRespostaLabel: {
-    fontSize: FONTS.sizes.xs,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  previewRespostaTexto: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.gray500,
-    fontStyle: 'italic',
-    marginTop: 1,
-  },
-
-  // Barra de edicao
-  editandoBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    backgroundColor: COLORS.primary + '08',
-    gap: SPACING.sm,
-  },
-  editandoTexto: {
-    flex: 1,
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-
-  // Container de mídia (áudio + imagem)
-  midiaContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    gap: SPACING.sm,
-  },
-  btnAnexarImagem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary + '08',
-    borderRadius: RADIUS.full,
-    paddingVertical: SPACING.sm,
-    gap: SPACING.sm,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary + '30',
-  },
-  btnAnexarTexto: {
-    fontSize: FONTS.sizes.sm,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-
-  inputRow: {
-    flexDirection: 'row',
-    padding: SPACING.sm,
-    alignItems: 'flex-end',
-  },
-  btnAnexo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.xs,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-    fontSize: FONTS.sizes.md,
-    color: COLORS.gray800,
-    maxHeight: 100,
-    marginRight: SPACING.sm,
-  },
-  btnEnviar: {
-    backgroundColor: COLORS.primary,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnEnviarDisabled: {
-    opacity: 0.5,
-  },
+  listaContent: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
+  uploadingBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, paddingVertical: SPACING.xs, gap: SPACING.sm },
+  uploadingText: { color: COLORS.white, fontSize: FONTS.sizes.sm, fontWeight: '600' },
+  balaoContainer: { marginBottom: SPACING.xs, maxWidth: '80%' },
+  balaoMinha: { alignSelf: 'flex-end' },
+  balaoOutro: { alignSelf: 'flex-start' },
+  balao: { borderRadius: 16, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
+  balaoMinhaFundo: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
+  balaoOutroFundo: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
+  balaoTexto: { fontSize: FONTS.sizes.md, lineHeight: 20 },
+  editadoTag: { fontSize: FONTS.sizes.xs, fontStyle: 'italic', marginTop: 2 },
+  replyContainer: { flexDirection: 'row', marginBottom: SPACING.xs, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: SPACING.xs, overflow: 'hidden' },
+  replyBar: { width: 4, borderRadius: 2, backgroundColor: COLORS.primary, marginRight: SPACING.sm },
+  replyContent: { flex: 1 },
+  replyAutor: { fontSize: FONTS.sizes.xs, fontWeight: 'bold', marginBottom: 1 },
+  replyTexto: { fontSize: FONTS.sizes.xs, fontStyle: 'italic' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
+  emptyText: { fontSize: FONTS.sizes.md, fontWeight: '600', color: COLORS.gray400, marginTop: SPACING.md },
+  emptySubtext: { fontSize: FONTS.sizes.sm, color: COLORS.gray300, marginTop: SPACING.xs, textAlign: 'center' },
+  inputArea: { backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray200 },
+  previewResposta: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, backgroundColor: COLORS.gray50, borderLeftWidth: 4, borderLeftColor: COLORS.primary, borderTopLeftRadius: RADIUS.md, borderTopRightRadius: RADIUS.md },
+  previewRespostaBar: { display: 'none' },
+  previewRespostaContent: { flex: 1, marginRight: SPACING.sm },
+  previewRespostaLabel: { fontSize: FONTS.sizes.xs, fontWeight: 'bold', color: COLORS.primary },
+  previewRespostaTexto: { fontSize: FONTS.sizes.xs, color: COLORS.gray500, fontStyle: 'italic', marginTop: 1 },
+  editandoBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, backgroundColor: COLORS.primary + '08', gap: SPACING.sm },
+  editandoTexto: { flex: 1, fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '600' },
+  midiaContainer: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.sm },
+  btnAnexarImagem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '08', borderRadius: RADIUS.full, paddingVertical: SPACING.sm, gap: SPACING.sm, borderWidth: 1.5, borderColor: COLORS.primary + '30' },
+  btnAnexarTexto: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.primary },
+  inputRow: { flexDirection: 'row', padding: SPACING.sm, alignItems: 'flex-end' },
+  btnAnexo: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.xs },
+  input: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: Platform.OS === 'ios' ? 10 : 8, fontSize: FONTS.sizes.md, color: COLORS.gray800, maxHeight: 100, marginRight: SPACING.sm },
+  btnEnviar: { backgroundColor: COLORS.primary, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  btnEnviarDisabled: { opacity: 0.5 },
 });
