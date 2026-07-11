@@ -1,6 +1,6 @@
 // Tela de Chat 1x1 - Mensagens Diretas Nativas
 // Sem bibliotecas externas: FlatList, KeyboardAvoidingView, onSnapshot
-// Funcionalidades: enviar, editar, excluir, balões estilo WhatsApp/Telegram
+// Funcionalidades: enviar, editar, excluir, responder, baloes estilo WhatsApp/Telegram
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import {
   enviarMensagemChat,
   ouvirMensagensChat,
@@ -30,12 +30,13 @@ export default function Chat1x1Screen({ route }) {
   const { chatId, contatoNome } = route.params;
   const { user: currentUser } = useAuth();
   const insets = useSafeAreaInsets();
+  const inputRef = useRef(null);
 
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [mensagemEmEdicao, setMensagemEmEdicao] = useState(null);
-  const flatListRef = useRef(null);
+  const [mensagemEmResposta, setMensagemEmResposta] = useState(null);
 
   // Escuta mensagens em tempo real
   useEffect(() => {
@@ -47,25 +48,48 @@ export default function Chat1x1Screen({ route }) {
     };
   }, [chatId]);
 
-  // Cancela modo de edição
+  // Cancela modo de edicao
   const cancelarEdicao = useCallback(() => {
     setMensagemEmEdicao(null);
     setTexto('');
   }, []);
 
-  // Long Press no balão — apenas para mensagens próprias
-  const handleLongPress = useCallback((item) => {
-    if (item.autor_id !== currentUser?.uid) return;
+  // Cancela modo de resposta
+  const cancelarResposta = useCallback(() => {
+    setMensagemEmResposta(null);
+  }, []);
 
-    Alert.alert('Opções da Mensagem', undefined, [
+  // Long Press no balao
+  const handleLongPress = useCallback((item) => {
+    const ehMinha = item.autor_id === currentUser?.uid;
+
+    const opcoes = [
       {
-        text: 'Editar',
+        text: 'Responder',
         onPress: () => {
-          setMensagemEmEdicao({ id: item.id, texto: item.texto });
-          setTexto(item.texto);
+          // Resposta cancela edicao e vice-versa
+          setMensagemEmEdicao(null);
+          setMensagemEmResposta({
+            id: item.id,
+            texto: item.texto,
+            autor_nome: ehMinha ? 'Você' : (contatoNome || 'Usuário'),
+          });
+          inputRef.current?.focus();
         },
       },
-      {
+    ];
+
+    if (ehMinha) {
+      opcoes.push({
+        text: 'Editar',
+        onPress: () => {
+          setMensagemEmResposta(null);
+          setMensagemEmEdicao({ id: item.id, texto: item.texto });
+          setTexto(item.texto);
+          inputRef.current?.focus();
+        },
+      });
+      opcoes.push({
         text: 'Excluir',
         style: 'destructive',
         onPress: () => {
@@ -84,10 +108,12 @@ export default function Chat1x1Screen({ route }) {
             },
           ]);
         },
-      },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  }, [currentUser, chatId]);
+      });
+    }
+
+    opcoes.push({ text: 'Cancelar', style: 'cancel' });
+    Alert.alert('Opções da Mensagem', undefined, opcoes);
+  }, [currentUser, chatId, contatoNome]);
 
   // Envia ou edita mensagem
   const handleEnviar = useCallback(async () => {
@@ -97,29 +123,29 @@ export default function Chat1x1Screen({ route }) {
     setEnviando(true);
     try {
       if (mensagemEmEdicao) {
-        // Modo edição
         await editarMensagemChat(chatId, mensagemEmEdicao.id, textoTrim);
         cancelarEdicao();
       } else {
-        // Modo criação
-        await enviarMensagemChat(chatId, textoTrim, currentUser.uid);
+        await enviarMensagemChat(chatId, textoTrim, currentUser.uid, mensagemEmResposta);
         setTexto('');
+        setMensagemEmResposta(null);
       }
     } catch (error) {
       Alert.alert('Erro', error.message || 'Não foi possível enviar a mensagem.');
     } finally {
       setEnviando(false);
     }
-  }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, cancelarEdicao]);
+  }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, mensagemEmResposta, cancelarEdicao]);
 
   // Renderiza cada mensagem
   const renderMensagem = useCallback(({ item }) => {
     const ehMinha = item.autor_id === currentUser?.uid;
     const foiEditada = !!item.editadoEm;
+    const temReply = !!item.reply_to;
 
     return (
       <TouchableOpacity
-        activeOpacity={ehMinha ? 0.7 : 1}
+        activeOpacity={0.7}
         onLongPress={() => handleLongPress(item)}
         delayLongPress={400}
         style={[
@@ -133,6 +159,25 @@ export default function Chat1x1Screen({ route }) {
             ehMinha ? styles.balaoMinhaFundo : styles.balaoOutroFundo,
           ]}
         >
+          {/* Mensagem respondida (reply) */}
+          {temReply && (
+            <View style={styles.replyContainer}>
+              <View style={styles.replyBar} />
+              <View style={styles.replyContent}>
+                <Text style={[styles.replyAutor, { color: ehMinha ? COLORS.white : COLORS.primary }]}>
+                  {item.reply_to.autor_nome}
+                </Text>
+                <Text
+                  style={[styles.replyTexto, { color: ehMinha ? 'rgba(255,255,255,0.8)' : COLORS.gray500 }]}
+                  numberOfLines={2}
+                >
+                  {item.reply_to.texto}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Texto principal */}
           <Text
             style={[
               styles.balaoTexto,
@@ -161,7 +206,6 @@ export default function Chat1x1Screen({ route }) {
     >
       {/* Lista de Mensagens */}
       <FlatList
-        ref={flatListRef}
         data={mensagens}
         keyExtractor={keyExtractor}
         renderItem={renderMensagem}
@@ -178,9 +222,28 @@ export default function Chat1x1Screen({ route }) {
         }
       />
 
-      {/* Área de Input com Safe Area (Android navigation bar) */}
+      {/* Area de Input com Safe Area (Android navigation bar) */}
       <View style={[styles.inputArea, { paddingBottom: Math.max(SPACING.sm, insets.bottom) }]}>
-        {/* Indicador de modo edição */}
+        
+        {/* Preview de resposta */}
+        {mensagemEmResposta && (
+          <View style={styles.previewResposta}>
+            <View style={styles.previewRespostaBar} />
+            <View style={styles.previewRespostaContent}>
+              <Text style={styles.previewRespostaLabel}>
+                Respondendo a {mensagemEmResposta.autor_nome}
+              </Text>
+              <Text style={styles.previewRespostaTexto} numberOfLines={1}>
+                {mensagemEmResposta.texto}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={cancelarResposta} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={20} color={COLORS.gray500} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Indicador de modo edicao */}
         {mensagemEmEdicao && (
           <View style={styles.editandoBar}>
             <Ionicons name="create-outline" size={16} color={COLORS.primary} />
@@ -190,8 +253,11 @@ export default function Chat1x1Screen({ route }) {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Input row */}
         <View style={styles.inputRow}>
           <TextInput
+            ref={inputRef}
             style={styles.input}
             value={texto}
             onChangeText={setTexto}
@@ -220,16 +286,12 @@ export default function Chat1x1Screen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
   listaContent: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
   },
 
-  // Balões
+  // Baloes
   balaoContainer: {
     marginBottom: SPACING.xs,
     maxWidth: '80%',
@@ -263,6 +325,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  // Reply dentro do balao
+  replyContainer: {
+    flexDirection: 'row',
+    marginBottom: SPACING.xs,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 4,
+    padding: SPACING.xs,
+    overflow: 'hidden',
+  },
+  replyBar: {
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.primary,
+    marginRight: SPACING.sm,
+  },
+  replyContent: {
+    flex: 1,
+  },
+  replyAutor: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: 'bold',
+    marginBottom: 1,
+  },
+  replyTexto: {
+    fontSize: FONTS.sizes.xs,
+    fontStyle: 'italic',
+  },
+
   // Empty
   emptyContainer: {
     flex: 1,
@@ -289,6 +379,39 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.gray200,
   },
+
+  // Preview de resposta
+  previewResposta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    backgroundColor: COLORS.gray50,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    borderTopLeftRadius: RADIUS.md,
+    borderTopRightRadius: RADIUS.md,
+  },
+  previewRespostaBar: {
+    display: 'none',
+  },
+  previewRespostaContent: {
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  previewRespostaLabel: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  previewRespostaTexto: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray500,
+    fontStyle: 'italic',
+    marginTop: 1,
+  },
+
+  // Barra de edicao
   editandoBar: {
     flexDirection: 'row',
     alignItems: 'center',

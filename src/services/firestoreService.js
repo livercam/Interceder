@@ -306,19 +306,31 @@ export const iniciarChat = async (meuUid, alvoUid, meusDados, alvoDados) => {
  * @param {string} autorId - UID do autor
  * @returns {Promise<string>} - ID da mensagem criada
  */
-export const enviarMensagemChat = async (chatId, texto, autorId) => {
+export const enviarMensagemChat = async (chatId, texto, autorId, mensagemRespondida = null) => {
   const batch = writeBatch(db);
 
-  // 1. Adiciona mensagem na subcoleção
-  const mensagensRef = collection(db, COLLECTIONS.CHATS, chatId, 'mensagens');
-  const novaMsgRef = doc(mensagensRef);
-  batch.set(novaMsgRef, {
+  // 1. Monta dados da mensagem
+  const dadosMensagem = {
     texto: texto.trim(),
     autor_id: autorId,
     criadoEm: serverTimestamp(),
-  });
+  };
 
-  // 2. Atualiza resumo do chat
+  // Se for resposta para outra mensagem, adiciona reply_to
+  if (mensagemRespondida) {
+    dadosMensagem.reply_to = {
+      id: mensagemRespondida.id || '',
+      texto: mensagemRespondida.texto || '',
+      autor_nome: mensagemRespondida.autor_nome || '',
+    };
+  }
+
+  // 2. Adiciona mensagem na subcoleção
+  const mensagensRef = collection(db, COLLECTIONS.CHATS, chatId, 'mensagens');
+  const novaMsgRef = doc(mensagensRef);
+  batch.set(novaMsgRef, dadosMensagem);
+
+  // 3. Atualiza resumo do chat
   const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
   batch.update(chatRef, {
     ultima_mensagem: texto.trim(),
