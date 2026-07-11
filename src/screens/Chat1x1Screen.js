@@ -1,7 +1,7 @@
 // Tela de Chat 1x1 - Mensagens Diretas Nativas v2.0
 // Design premium: waveform, status de leitura, bordas sutis
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,34 @@ const STATUS_LABELS = {
   recebido: 'Recebido',
   visualizado: 'Visualizado',
 };
+
+// Componente de imagem com fallback para URL quebrada
+function MensagemImagem({ imagemUrl }) {
+  const [erro, setErro] = useState(false);
+
+  if (erro || !imagemUrl) {
+    return (
+      <View style={styles.imagemPlaceholder}>
+        <Ionicons name="image-outline" size={32} color={COLORS.gray300} />
+        <Text style={styles.imagemPlaceholderTexto}>Indisponível</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.imagemContainer}>
+      <Image
+        source={{ uri: imagemUrl }}
+        style={{ width: '100%', height: '100%' }}
+        resizeMode="cover"
+        onError={(e) => {
+          console.log('[Chat] URL quebrada detectada:', imagemUrl, e.nativeEvent.error);
+          setErro(true);
+        }}
+      />
+    </View>
+  );
+}
 
 export default function Chat1x1Screen({ route }) {
   const { chatId, contatoNome } = route.params;
@@ -247,6 +275,9 @@ export default function Chat1x1Screen({ route }) {
     const temImagem = !!item.imagem_url;
     const temAudio = !!item.audio_url;
     const statusMsg = item.status || 'enviado';
+
+    console.log('[Chat] Renderizando msg:', item.id, 'Status:', statusMsg, 'URL:', item.imagem_url?.substring(0, 60));
+
     return (
       <View style={[styles.balaoContainer, ehMinha ? styles.balaoMinha : styles.balaoOutro, temAudio && styles.balaoAudioExpansivel]}>
         <TouchableOpacity activeOpacity={0.7} onLongPress={() => handleLongPress(item)} delayLongPress={400}
@@ -260,14 +291,7 @@ export default function Chat1x1Screen({ route }) {
               </View>
             </View>
           )}
-          {temImagem && (
-            <Image
-              source={{ uri: item.imagem_url }}
-              style={{ width: 200, height: 200, borderRadius: 16, borderWidth: 0.5, borderColor: '#e5e7eb', marginBottom: SPACING.xs }}
-              resizeMode="cover"
-              onError={(e) => console.log('[Chat] Erro imagem:', item.imagem_url, e.nativeEvent.error)}
-            />
-          )}
+          {temImagem && <MensagemImagem imagemUrl={item.imagem_url} />}
           {temAudio && (
             <View style={styles.audioBalaoContainer}>
               <FeedAudio audioUrl={item.audio_url} />
@@ -294,8 +318,15 @@ export default function Chat1x1Screen({ route }) {
           <Text style={styles.uploadingText}>Enviando mídia...</Text>
         </View>
       )}
-      <FlatList data={mensagens} keyExtractor={keyExtractor} renderItem={renderMensagem} inverted={true}
-        contentContainerStyle={styles.listaContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+      <FlatList
+        data={mensagens}
+        keyExtractor={keyExtractor}
+        renderItem={renderMensagem}
+        inverted={true}
+        contentContainerStyle={styles.listaContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        extraData={mensagens}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="chatbubbles-outline" size={48} color={COLORS.gray300} />
@@ -385,6 +416,35 @@ const styles = StyleSheet.create({
   balaoMinhaFundo: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
   balaoOutroFundo: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
   balaoTexto: { fontSize: FONTS.sizes.md, lineHeight: 20 },
+
+  // Imagem com container
+  imagemContainer: {
+    width: 200,
+    height: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#e5e7eb',
+    alignSelf: 'flex-start',
+    marginBottom: SPACING.xs,
+  },
+  imagemPlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: 16,
+    borderWidth: 0.5,
+    borderColor: COLORS.gray200,
+    backgroundColor: COLORS.gray50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: SPACING.xs,
+  },
+  imagemPlaceholderTexto: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray400,
+    marginTop: SPACING.xs,
+  },
 
   audioBalaoContainer: { backgroundColor: 'transparent', padding: 0, marginBottom: SPACING.xs },
 
