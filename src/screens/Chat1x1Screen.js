@@ -329,18 +329,23 @@ export default function Chat1x1Screen({ route }) {
     const textoTrim = texto.trim();
     if (!textoTrim || enviando) return;
     setEnviando(true);
+    
     try {
       if (mensagemEmEdicao) {
         await editarMensagemChat(chatId, mensagemEmEdicao.id, textoTrim);
         cancelarEdicao();
       } else {
-        await enviarMensagemChat(chatId, textoTrim, currentUser.uid, mensagemEmResposta);
+        // CORREÇÃO: Passando 'null' explicitamente para imagem_url e audio_url
+        await enviarMensagemChat(chatId, textoTrim, currentUser.uid, mensagemEmResposta, null, null);
         setTexto('');
         setMensagemEmResposta(null);
       }
     } catch (error) {
+      console.error("[Erro HandleEnviar]", error);
       showAlert({ title: 'Erro', message: error.message || 'Não foi possível enviar.', buttons: [{ text: 'OK', type: 'default' }] });
-    } finally { setEnviando(false); }
+    } finally { 
+      setEnviando(false); 
+    }
   }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, mensagemEmResposta, cancelarEdicao, showAlert]);
 
   const renderMensagem = useCallback(({ item }) => {
