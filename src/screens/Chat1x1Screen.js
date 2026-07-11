@@ -17,7 +17,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
 import { requestRecordingPermissionsAsync, setAudioModeAsync, AudioModule } from 'expo-audio';
 import { uploadAsync } from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
@@ -81,7 +80,7 @@ export default function Chat1x1Screen({ route }) {
     return () => {
       if (timerGravRef.current) clearInterval(timerGravRef.current);
       if (gravadorRef.current) { try { gravadorRef.current = null; } catch (e) {} }
-      if (somPreviewRef.current) { try { somPreviewRef.current.unloadAsync(); } catch (e) {} }
+      if (somPreviewRef.current) { try { somPreviewRef.current.remove(); } catch (e) {} }
     };
   }, []);
 
@@ -96,7 +95,7 @@ export default function Chat1x1Screen({ route }) {
 
   const limparPreview = useCallback(() => {
     if (somPreviewRef.current) {
-      try { somPreviewRef.current.unloadAsync(); } catch (e) {}
+      try { somPreviewRef.current.remove(); } catch (e) {}
       somPreviewRef.current = null;
     }
     setTocandoPreview(false);
@@ -140,34 +139,31 @@ export default function Chat1x1Screen({ route }) {
     setMidiaPreview({ uri, tipo: 'audio', duracao: tempoGravacao });
   }, [tempoGravacao]);
 
-  // ===== PRÉ-OUVIR ÁUDIO (expo-av) =====
+  // ===== PRÉ-OUVIR ÁUDIO (expo-audio AudioModule) =====
   const togglePreOuvir = useCallback(async () => {
     if (!midiaPreview || midiaPreview.tipo !== 'audio') return;
     if (tocandoPreview && somPreviewRef.current) {
-      await somPreviewRef.current.pauseAsync();
+      try { somPreviewRef.current.pause(); } catch (e) {}
       setTocandoPreview(false);
       return;
     }
     try {
-      await Audio.setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-      if (!somPreviewRef.current) {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: midiaPreview.uri },
-          { shouldPlay: true },
-          (status) => {
-            if (status.didJustFinish) {
-              setTocandoPreview(false);
-              try { somPreviewRef.current?.unloadAsync(); } catch (e) {}
-              somPreviewRef.current = null;
-            }
-          }
-        );
-        somPreviewRef.current = sound;
-        setTocandoPreview(true);
-      } else {
-        await somPreviewRef.current.playAsync();
-        setTocandoPreview(true);
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      if (somPreviewRef.current) {
+        try { somPreviewRef.current.remove(); } catch (e) {}
+        somPreviewRef.current = null;
       }
+      const player = new AudioModule.AudioPlayer({ uri: midiaPreview.uri }, 500, false, 0);
+      player.addListener('playingStatusDidChange', (status) => {
+        if (status === 'finished') {
+          setTocandoPreview(false);
+          try { player.remove(); } catch (e) {}
+          if (somPreviewRef.current === player) somPreviewRef.current = null;
+        }
+      });
+      somPreviewRef.current = player;
+      await player.play();
+      setTocandoPreview(true);
     } catch (e) {
       console.warn('[PreOuvir]', e.message);
     }
