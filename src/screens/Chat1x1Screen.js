@@ -23,6 +23,7 @@ import {
   ouvirMensagensChat,
   editarMensagemChat,
   excluirMensagemChat,
+  marcarMensagensComoLidas,
 } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -38,15 +39,21 @@ export default function Chat1x1Screen({ route }) {
   const [mensagemEmEdicao, setMensagemEmEdicao] = useState(null);
   const [mensagemEmResposta, setMensagemEmResposta] = useState(null);
 
-  // Escuta mensagens em tempo real
+  // Escuta mensagens em tempo real e marca como lidas ao abrir
   useEffect(() => {
     const unsubscribe = ouvirMensagensChat(chatId, (msgs) => {
       setMensagens(msgs);
     });
+
+    // Marca mensagens como lidas ao entrar no chat
+    if (currentUser) {
+      marcarMensagensComoLidas(chatId, currentUser.uid);
+    }
+
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [chatId]);
+  }, [chatId, currentUser]);
 
   // Cancela modo de edicao
   const cancelarEdicao = useCallback(() => {

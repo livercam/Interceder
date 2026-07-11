@@ -314,6 +314,7 @@ export const enviarMensagemChat = async (chatId, texto, autorId, mensagemRespond
     texto: texto.trim(),
     autor_id: autorId,
     criadoEm: serverTimestamp(),
+    lida: false,
   };
 
   // Se for resposta para outra mensagem, adiciona reply_to
@@ -330,10 +331,11 @@ export const enviarMensagemChat = async (chatId, texto, autorId, mensagemRespond
   const novaMsgRef = doc(mensagensRef);
   batch.set(novaMsgRef, dadosMensagem);
 
-  // 3. Atualiza resumo do chat
+  // 3. Atualiza resumo do chat (com flag de nao lida para o destinatario)
   const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
   batch.update(chatRef, {
     ultima_mensagem: texto.trim(),
+    ultima_mensagem_lida: false,
     timestamp_atualizacao: serverTimestamp(),
   });
 
@@ -446,6 +448,64 @@ export const ouvirMeusChats = (meuUid, callback) => {
   }, (error) => {
     console.warn('[ouvirMeusChats] Erro:', error.message);
     callback([]);
+  });
+};
+
+/**
+ * Marca todas as mensagens não lidas de um chat como lidas.
+ * Atualiza lida=true nas mensagens onde autor_id != meuUid.
+ * Também marca ultima_mensagem_lida=true no documento pai.
+ *
+ * @param {string} chatId - ID do chat
+ * @param {string} meuUid - UID do utilizador atual
+ */
+export const marcarMensagensComoLidas = async (chatId, meuUid) => {
+  try {
+    const q = query(
+      collection(db, COLLECTIONS.CHATS, chatId, 'mensagens'),
+      where('lida', '==', false),
+      where('autor_id', '!=', meuUid),
+      limit(50)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(db);
+    snapshot.forEach((docSnap) => {
+      batch.update(docSnap.ref, { lida: true });
+    });
+
+    // Marca o chat pai como lido
+    const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+    batch.update(chatRef, { ultima_mensagem_lida: true });
+
+    await batch.commit();
+  } catch (error) {
+    console.warn('[marcarMensagensComoLidas] Erro:', error.message);
+  }
+};
+
+/**
+ * Escuta em tempo real o total de mensagens não lidas do usuário.
+ * Conta quantos chats possuem ultima_mensagem_lida === false.
+ *
+ * @param {string} meuUid - UID do utilizador
+ * @param {function} callback - Função chamada com o número total de não lidas
+ * @returns {function} - Função para cancelar a inscrição
+ */
+export const ouvirTotalMensagensNaoLidas = (meuUid, callback) => {
+  const q = query(
+    collection(db, COLLECTIONS.CHATS),
+    where('participantes', 'array-contains', meuUid),
+    where('ultima_mensagem_lida', '==', false)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.warn('[ouvirTotalMensagensNaoLidas] Erro:', error.message);
+    callback(0);
   });
 };
 
