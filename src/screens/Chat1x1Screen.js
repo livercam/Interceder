@@ -242,13 +242,14 @@ export default function Chat1x1Screen({ route }) {
       // 3. Gerar URL Pública
       const urlFinal = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/${pathStorage}?alt=media`;
       
-      // 4. Salvar no Firestore
+      // 4. Salvar no Firestore (passando a referência de resposta corretamente)
       if (isImagem) {
-        await enviarMensagemChat(chatId, '', currentUser.uid, null, urlFinal, null);
+        await enviarMensagemChat(chatId, '', currentUser.uid, mensagemEmResposta, urlFinal, null);
       } else {
-        await enviarMensagemChat(chatId, '', currentUser.uid, null, null, urlFinal);
+        await enviarMensagemChat(chatId, '', currentUser.uid, mensagemEmResposta, null, urlFinal);
       }
       
+      setMensagemEmResposta(null); // Limpa o banner de resposta após enviar a mídia
       limparPreview();
     } catch (error) {
       console.error("[Upload Catch]", error);
@@ -256,29 +257,70 @@ export default function Chat1x1Screen({ route }) {
     } finally { 
       setEnviando(false); 
     }
-  }, [midiaPreview, chatId, currentUser, enviando, limparPreview, showAlert]);
+  }, [midiaPreview, chatId, currentUser, enviando, mensagemEmResposta, limparPreview, showAlert]);
 
   const handleLongPress = useCallback((item) => {
     const ehMinha = item.autor_id === currentUser?.uid;
-    if (item.imagem_url || item.audio_url) {
-      if (ehMinha) {
-        showAlert({
-          title: 'Opções da Mensagem',
-          buttons: [
-            { text: 'Excluir', type: 'destructive', onPress: () => { showAlert({ title: 'Excluir mensagem', message: 'Tem certeza?', buttons: [{ text: 'Cancelar', type: 'cancel' }, { text: 'Excluir', type: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { showAlert({ title: 'Erro', message: error.message, buttons: [{ text: 'OK', type: 'default' }] }); } } }] }); } },
-            { text: 'Cancelar', type: 'cancel' },
-          ],
+    const opcoes = [];
+
+    // 1. Todos podem responder a qualquer tipo de mensagem
+    const textoResposta = item.texto || (item.imagem_url ? '📷 Imagem' : '🎤 Áudio');
+    opcoes.push({
+      text: 'Responder',
+      type: 'default',
+      onPress: () => {
+        setMensagemEmEdicao(null);
+        setMensagemEmResposta({
+          id: item.id,
+          texto: textoResposta,
+          autor_nome: ehMinha ? 'Você' : (contatoNome || 'Usuário')
+        });
+        inputRef.current?.focus();
+      }
+    });
+
+    if (ehMinha) {
+      // 2. Só permite editar se for mensagem de texto
+      if (item.texto) {
+        opcoes.push({
+          text: 'Editar',
+          type: 'default',
+          onPress: () => {
+            setMensagemEmResposta(null);
+            setMensagemEmEdicao({ id: item.id, texto: item.texto });
+            setTexto(item.texto);
+            inputRef.current?.focus();
+          }
         });
       }
-      return;
+
+      // 3. Permite excluir qualquer tipo de mensagem própria
+      opcoes.push({
+        text: 'Excluir',
+        type: 'destructive',
+        onPress: () => {
+          showAlert({
+            title: 'Excluir mensagem',
+            message: 'Tem certeza que deseja apagar?',
+            buttons: [
+              { text: 'Cancelar', type: 'cancel' },
+              {
+                text: 'Excluir',
+                type: 'destructive',
+                onPress: async () => {
+                  try {
+                    await excluirMensagemChat(chatId, item.id);
+                  } catch (error) {
+                    showAlert({ title: 'Erro', message: error.message, buttons: [{ text: 'OK', type: 'default' }] });
+                  }
+                }
+              }
+            ]
+          });
+        }
+      });
     }
-    const opcoes = [
-      { text: 'Responder', type: 'default', onPress: () => { setMensagemEmEdicao(null); setMensagemEmResposta({ id: item.id, texto: item.texto, autor_nome: ehMinha ? 'Você' : (contatoNome || 'Usuário') }); inputRef.current?.focus(); } },
-    ];
-    if (ehMinha) {
-      opcoes.push({ text: 'Editar', type: 'default', onPress: () => { setMensagemEmResposta(null); setMensagemEmEdicao({ id: item.id, texto: item.texto }); setTexto(item.texto); inputRef.current?.focus(); } });
-      opcoes.push({ text: 'Excluir', type: 'destructive', onPress: () => { showAlert({ title: 'Excluir mensagem', message: 'Tem certeza?', buttons: [{ text: 'Cancelar', type: 'cancel' }, { text: 'Excluir', type: 'destructive', onPress: async () => { try { await excluirMensagemChat(chatId, item.id); } catch (error) { showAlert({ title: 'Erro', message: error.message, buttons: [{ text: 'OK', type: 'default' }] }); } } }] }); } });
-    }
+
     opcoes.push({ text: 'Cancelar', type: 'cancel' });
     showAlert({ title: 'Opções da Mensagem', buttons: opcoes });
   }, [currentUser, chatId, contatoNome, showAlert]);
