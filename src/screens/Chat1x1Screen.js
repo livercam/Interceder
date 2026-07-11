@@ -206,20 +206,24 @@ export default function Chat1x1Screen({ route }) {
   }, [limparPreview]);
 
   const enviarMidiaPreview = useCallback(async () => {
-    if (!midiaPreview || enviando) return;
-    limparPreview();
+    const preview = midiaPreview;
+    if (!preview || enviando) return;
     setEnviando(true);
     try {
       const token = await currentUser.getIdToken();
-      if (midiaPreview.tipo === 'imagem') {
+      console.log('[Upload] Iniciando upload para chat:', chatId, 'tipo:', preview.tipo, 'uri:', preview.uri?.substring(0, 60));
+      if (preview.tipo === 'imagem') {
         const nome = `img_${Date.now()}.jpg`;
-        const urlUp = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=chat_imagens%2F${chatId}%2F${nome}`;
-        await uploadAsync(urlUp, midiaPreview.uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' } });
+        const urlStorage = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=chat_imagens%2F${chatId}%2F${nome}`;
+        console.log('[Upload] URL Storage:', urlStorage);
+        const uploadResult = await uploadAsync(urlStorage, preview.uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' } });
+        console.log('[Upload] Resultado:', uploadResult.status, uploadResult.status === 200 ? 'OK' : 'FALHA');
         const urlF = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/chat_imagens%2F${chatId}%2F${nome}?alt=media`;
         await enviarMensagemChat(chatId, '', currentUser.uid, null, urlF, null);
-      } else if (midiaPreview.tipo === 'audio') {
-        await enviarMensagemChat(chatId, '', currentUser.uid, null, null, midiaPreview.uri);
+      } else if (preview.tipo === 'audio') {
+        await enviarMensagemChat(chatId, '', currentUser.uid, null, null, preview.uri);
       }
+      limparPreview();
     } catch (error) {
       showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar mídia.', buttons: [{ text: 'OK', type: 'default' }] });
     } finally { setEnviando(false); }
