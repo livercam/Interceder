@@ -1,5 +1,5 @@
-// FeedAudio — Player de áudio com waveform estilo premium
-// Layout horizontal: play/pause, waveform (barras), timestamp
+// FeedAudio — Player de áudio com waveform (20 barras)
+// Layout horizontal: play/pause, waveform (barras de 3px), timestamp
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -14,15 +14,8 @@ const fmt = (s) => {
   return `${m}:${seg}`;
 };
 
-// Gera alturas aleatórias consistentes para o waveform
-const WAVE_BARS = 24;
-const gerarWaveform = () => {
-  const arr = [];
-  for (let i = 0; i < WAVE_BARS; i++) {
-    arr.push(Math.floor(Math.random() * 16) + 4);
-  }
-  return arr;
-};
+const WAVE_BARS = 20;
+const ALTURAS = [10, 15, 20, 12, 18, 8, 14, 22, 16, 10, 20, 14, 18, 8, 12, 20, 14, 16, 10, 18];
 
 export default function FeedAudio({ audioUrl }) {
   const [tocando, setTocando] = useState(false);
@@ -30,7 +23,6 @@ export default function FeedAudio({ audioUrl }) {
   const [tempoDecorrido, setTempoDecorrido] = useState(0);
   const playerRef = useRef(null);
   const timerRef = useRef(null);
-  const waveform = useMemo(() => gerarWaveform(), []);
 
   useEffect(() => { return () => { pararELimpar(); }; }, []);
   useEffect(() => { return () => { pararELimpar(); }; }, [audioUrl]);
@@ -79,7 +71,7 @@ export default function FeedAudio({ audioUrl }) {
         <Ionicons name={tocando ? 'pause' : 'play'} size={12} color={COLORS.primary} style={{ marginLeft: tocando ? 0 : 1.5 }} />
       </TouchableOpacity>
       <View style={styles.waveformContainer}>
-        {waveform.map((altura, i) => (
+        {ALTURAS.map((altura, i) => (
           <View
             key={i}
             style={[
@@ -116,12 +108,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    height: 20,
+    height: 24,
     gap: 2,
   },
   waveBar: {
-    flex: 1,
-    borderRadius: 1.5,
+    width: 3,
+    borderRadius: 2,
     minHeight: 3,
   },
   timer: {

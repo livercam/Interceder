@@ -261,9 +261,11 @@ export default function Chat1x1Screen({ route }) {
             </View>
           )}
           {temImagem && (
-            <View style={styles.imagemBalaoContainer}>
-              <Image source={{ uri: item.imagem_url }} style={styles.imagemBalao} resizeMode="cover" />
-            </View>
+            <Image
+              source={{ uri: item.imagem_url }}
+              style={{ width: 200, height: 200, borderRadius: 16, borderWidth: 0.5, borderColor: COLORS.gray200, marginBottom: SPACING.xs }}
+              resizeMode="cover"
+            />
           )}
           {temAudio && (
             <View style={styles.audioBalaoContainer}>
@@ -382,14 +384,6 @@ const styles = StyleSheet.create({
   balaoOutroFundo: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
   balaoTexto: { fontSize: FONTS.sizes.md, lineHeight: 20 },
 
-  // Imagem com borda sutil
-  imagemBalaoContainer: {
-    width: 200, height: 200,
-    borderRadius: 16, overflow: 'hidden',
-    marginBottom: SPACING.xs,
-    borderWidth: 0.5, borderColor: COLORS.gray200,
-  },
-  imagemBalao: { width: '100%', height: '100%' },
   audioBalaoContainer: { backgroundColor: 'transparent', padding: 0, marginBottom: SPACING.xs },
 
   // Status de leitura e editado na mesma row
