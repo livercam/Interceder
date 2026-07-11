@@ -316,6 +316,7 @@ export const enviarMensagemChat = async (chatId, texto, autorId, mensagemRespond
     autor_id: autorId,
     criadoEm: serverTimestamp(),
     lida: false,
+    status: 'enviado',
   };
 
   if (imagem_url) {
