@@ -16,6 +16,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { enviarMensagemChat, ouvirMensagensChat } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Chat1x1Screen({ route }) {
   const { chatId, contatoNome } = route.params;
   const { user: currentUser } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState('');
@@ -110,8 +112,8 @@ export default function Chat1x1Screen({ route }) {
         }
       />
 
-      {/* Área de Input */}
-      <View style={styles.inputArea}>
+      {/* Área de Input com Safe Area (Android navigation bar) */}
+      <View style={[styles.inputArea, { paddingBottom: Math.max(SPACING.sm, insets.bottom) }]}>
         <TextInput
           style={styles.input}
           value={texto}
