@@ -215,7 +215,82 @@ export const toggleSeguirUsuario = async (meuUid, perfilUid) => {
     }
   });
 
+  // Notificação de novo seguidor (fora da transação para não afetar atomicidade)
+  if (novoStatus) {
+    try {
+      await criarNotificacao(
+        perfilUid,
+        'Novo Seguidor! 🎉',
+        'Alguém começou a acompanhar sua jornada.',
+        'novo_seguidor',
+        meuUid
+      );
+    } catch (notifError) {
+      console.warn('[toggleSeguirUsuario] Erro ao notificar seguidor:', notifError.message);
+    }
+  }
+
   return novoStatus;
+};
+
+// ============================================================
+// CHAT 1x1 (Sistema de Mensagens Diretas)
+// ============================================================
+
+/**
+ * Inicia ou recupera um chat entre dois utilizadores.
+ * Gera um ID determinístico ordenando os UIDs alfabeticamente.
+ *
+ * Estrutura no Firestore:
+ * - chats/{chatId} (documento principal)
+ *   - participantes: [meuUid, alvoUid]
+ *   - dados_participantes: { [uid]: { nome, foto } }
+ *   - ultima_mensagem: string (vazia inicialmente)
+ *   - timestamp_atualizacao: serverTimestamp()
+ *
+ * @param {string} meuUid - UID do utilizador atual
+ * @param {string} alvoUid - UID do utilizador alvo
+ * @param {object} meusDados - { nome: string, foto: string|null }
+ * @param {object} alvoDados - { nome: string, foto: string|null }
+ * @returns {Promise<string>} - ID do chat (existente ou recém-criado)
+ */
+export const iniciarChat = async (meuUid, alvoUid, meusDados, alvoDados) => {
+  if (meuUid === alvoUid) {
+    throw new Error('Você não pode iniciar um chat consigo mesmo.');
+  }
+
+  // Gera ID determinístico: ordena UIDs e junta com "_"
+  const chatId = [meuUid, alvoUid].sort().join('_');
+
+  try {
+    const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+    const chatSnap = await getDoc(chatRef);
+
+    if (!chatSnap.exists()) {
+      // Cria o documento do chat com dados desnormalizados dos participantes
+      await setDoc(chatRef, {
+        participantes: [meuUid, alvoUid],
+        dados_participantes: {
+          [meuUid]: {
+            nome: meusDados.nome || '',
+            foto: meusDados.foto || null,
+          },
+          [alvoUid]: {
+            nome: alvoDados.nome || '',
+            foto: alvoDados.foto || null,
+          },
+        },
+        ultima_mensagem: '',
+        timestamp_atualizacao: serverTimestamp(),
+        criado_em: serverTimestamp(),
+      });
+    }
+
+    return chatId;
+  } catch (error) {
+    console.error('[iniciarChat] Erro:', error);
+    throw new Error('Não foi possível iniciar o chat.');
+  }
 };
 
 // ============================================================

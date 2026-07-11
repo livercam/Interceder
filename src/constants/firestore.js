@@ -11,6 +11,7 @@ export const COLLECTIONS = {
   DENUNCIAS: 'denuncias',
   NOTIFICACOES: 'notificacoes',
   SUPORTE: 'suporte',
+  CHATS: 'chats',
 };
 
 export const USER_FIELDS = {

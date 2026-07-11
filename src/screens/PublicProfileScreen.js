@@ -29,6 +29,7 @@ import {
   alternarEndosso,
   verificarSeSegue,
   toggleSeguirUsuario,
+  iniciarChat,
 } from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
 import { formatarNomeCurto } from '../utils/formatters';
@@ -313,6 +314,26 @@ export default function PublicProfileScreen({ route, navigation }) {
     }
   }, [currentUser, userId, jaEndossou, executarEndosso]);
 
+  // === HANDLE ABRIR CHAT ===
+  const [loadingChat, setLoadingChat] = useState(false);
+  const handleAbrirChat = useCallback(async () => {
+    if (!currentUser) {
+      Alert.alert('Atenção', 'Faça login para enviar mensagem.');
+      return;
+    }
+    setLoadingChat(true);
+    try {
+      const meusDados = { nome: currentUser.nome || '', foto: currentUser.foto_url || null };
+      const alvoDados = { nome: profile?.nome || '', foto: profile?.foto_url || null };
+      const chatId = await iniciarChat(currentUser.uid, userId, meusDados, alvoDados);
+      navigation.navigate('Chat1x1', { chatId, contatoNome: profile?.nome || 'Usuário' });
+    } catch (error) {
+      Alert.alert('Erro', error.message || 'Não foi possível abrir o chat.');
+    } finally {
+      setLoadingChat(false);
+    }
+  }, [currentUser, userId, profile, navigation]);
+
   if (loading) {
     return (
       <View style={styles.containerLoading}>
@@ -423,9 +444,14 @@ export default function PublicProfileScreen({ route, navigation }) {
               <TouchableOpacity
                 style={styles.btnMensagem}
                 activeOpacity={0.85}
-                onPress={() => Alert.alert('Em breve', 'Funcionalidade de mensagem será implementada em breve.')}
+                onPress={handleAbrirChat}
+                disabled={loadingChat}
               >
-                <Text style={styles.btnMensagemText}>MENSAGEM</Text>
+                {loadingChat ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <Text style={styles.btnMensagemText}>MENSAGEM</Text>
+                )}
               </TouchableOpacity>
             </View>
 
