@@ -356,6 +356,59 @@ export const ouvirMensagensChat = (chatId, callback) => {
   });
 };
 
+/**
+ * Edita o texto de uma mensagem existente no chat.
+ * Adiciona flag editadoEm para indicar que foi modificada.
+ * Também atualiza ultima_mensagem no documento pai do chat.
+ *
+ * @param {string} chatId - ID do chat
+ * @param {string} mensagemId - ID da mensagem
+ * @param {string} novoTexto - Novo texto
+ */
+export const editarMensagemChat = async (chatId, mensagemId, novoTexto) => {
+  const batch = writeBatch(db);
+
+  // 1. Atualiza a mensagem com novo texto e flag editadoEm
+  const msgRef = doc(db, COLLECTIONS.CHATS, chatId, 'mensagens', mensagemId);
+  batch.update(msgRef, {
+    texto: novoTexto.trim(),
+    editadoEm: serverTimestamp(),
+  });
+
+  // 2. Atualiza resumo do chat
+  const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+  batch.update(chatRef, {
+    ultima_mensagem: novoTexto.trim(),
+    timestamp_atualizacao: serverTimestamp(),
+  });
+
+  await batch.commit();
+};
+
+/**
+ * Exclui (deleta) uma mensagem do chat.
+ * Atualiza ultima_mensagem no documento pai para '🚫 Mensagem excluída'.
+ *
+ * @param {string} chatId - ID do chat
+ * @param {string} mensagemId - ID da mensagem
+ */
+export const excluirMensagemChat = async (chatId, mensagemId) => {
+  const batch = writeBatch(db);
+
+  // 1. Deleta a mensagem
+  const msgRef = doc(db, COLLECTIONS.CHATS, chatId, 'mensagens', mensagemId);
+  batch.delete(msgRef);
+
+  // 2. Atualiza resumo do chat
+  const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+  batch.update(chatRef, {
+    ultima_mensagem: '🚫 Mensagem excluída',
+    timestamp_atualizacao: serverTimestamp(),
+  });
+
+  await batch.commit();
+};
+
 // ============================================================
 // PEDIDOS DE ORAÇÃO
 // ============================================================

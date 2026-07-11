@@ -1,6 +1,6 @@
 // Tela de Chat 1x1 - Mensagens Diretas Nativas
 // Sem bibliotecas externas: FlatList, KeyboardAvoidingView, onSnapshot
-// Design: balões estilo WhatsApp/Telegram com theme.js
+// Funcionalidades: enviar, editar, excluir, balões estilo WhatsApp/Telegram
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -18,7 +18,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { enviarMensagemChat, ouvirMensagensChat } from '../services/firestoreService';
+import {
+  enviarMensagemChat,
+  ouvirMensagensChat,
+  editarMensagemChat,
+  excluirMensagemChat,
+} from '../services/firestoreService';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Chat1x1Screen({ route }) {
@@ -29,6 +34,7 @@ export default function Chat1x1Screen({ route }) {
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [mensagemEmEdicao, setMensagemEmEdicao] = useState(null);
   const flatListRef = useRef(null);
 
   // Escuta mensagens em tempo real
@@ -41,27 +47,81 @@ export default function Chat1x1Screen({ route }) {
     };
   }, [chatId]);
 
-  // Envia mensagem
+  // Cancela modo de edição
+  const cancelarEdicao = useCallback(() => {
+    setMensagemEmEdicao(null);
+    setTexto('');
+  }, []);
+
+  // Long Press no balão — apenas para mensagens próprias
+  const handleLongPress = useCallback((item) => {
+    if (item.autor_id !== currentUser?.uid) return;
+
+    Alert.alert('Opções da Mensagem', undefined, [
+      {
+        text: 'Editar',
+        onPress: () => {
+          setMensagemEmEdicao({ id: item.id, texto: item.texto });
+          setTexto(item.texto);
+        },
+      },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert('Excluir mensagem', 'Tem certeza que deseja excluir esta mensagem?', [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Excluir',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await excluirMensagemChat(chatId, item.id);
+                } catch (error) {
+                  Alert.alert('Erro', error.message || 'Não foi possível excluir.');
+                }
+              },
+            },
+          ]);
+        },
+      },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }, [currentUser, chatId]);
+
+  // Envia ou edita mensagem
   const handleEnviar = useCallback(async () => {
     const textoTrim = texto.trim();
     if (!textoTrim || enviando) return;
 
     setEnviando(true);
     try {
-      await enviarMensagemChat(chatId, textoTrim, currentUser.uid);
-      setTexto('');
+      if (mensagemEmEdicao) {
+        // Modo edição
+        await editarMensagemChat(chatId, mensagemEmEdicao.id, textoTrim);
+        cancelarEdicao();
+      } else {
+        // Modo criação
+        await enviarMensagemChat(chatId, textoTrim, currentUser.uid);
+        setTexto('');
+      }
     } catch (error) {
       Alert.alert('Erro', error.message || 'Não foi possível enviar a mensagem.');
     } finally {
       setEnviando(false);
     }
-  }, [texto, chatId, currentUser, enviando]);
+  }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, cancelarEdicao]);
 
   // Renderiza cada mensagem
   const renderMensagem = useCallback(({ item }) => {
     const ehMinha = item.autor_id === currentUser?.uid;
+    const foiEditada = !!item.editadoEm;
+
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={ehMinha ? 0.7 : 1}
+        onLongPress={() => handleLongPress(item)}
+        delayLongPress={400}
         style={[
           styles.balaoContainer,
           ehMinha ? styles.balaoMinha : styles.balaoOutro,
@@ -81,10 +141,15 @@ export default function Chat1x1Screen({ route }) {
           >
             {item.texto}
           </Text>
+          {foiEditada && (
+            <Text style={[styles.editadoTag, { color: ehMinha ? 'rgba(255,255,255,0.7)' : COLORS.gray400 }]}>
+              (editado)
+            </Text>
+          )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
-  }, [currentUser]);
+  }, [currentUser, handleLongPress]);
 
   const keyExtractor = useCallback((item) => item.id, []);
 
@@ -115,28 +180,40 @@ export default function Chat1x1Screen({ route }) {
 
       {/* Área de Input com Safe Area (Android navigation bar) */}
       <View style={[styles.inputArea, { paddingBottom: Math.max(SPACING.sm, insets.bottom) }]}>
-        <TextInput
-          style={styles.input}
-          value={texto}
-          onChangeText={setTexto}
-          placeholder="Digite sua mensagem..."
-          placeholderTextColor={COLORS.gray400}
-          multiline
-          maxLength={500}
-          textAlignVertical="center"
-        />
-        <TouchableOpacity
-          style={[styles.btnEnviar, (!texto.trim() || enviando) && styles.btnEnviarDisabled]}
-          onPress={handleEnviar}
-          disabled={!texto.trim() || enviando}
-          activeOpacity={0.7}
-        >
-          {enviando ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
-          ) : (
-            <Ionicons name="send" size={20} color={COLORS.white} />
-          )}
-        </TouchableOpacity>
+        {/* Indicador de modo edição */}
+        {mensagemEmEdicao && (
+          <View style={styles.editandoBar}>
+            <Ionicons name="create-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.editandoTexto}>Editando mensagem...</Text>
+            <TouchableOpacity onPress={cancelarEdicao} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={20} color={COLORS.gray500} />
+            </TouchableOpacity>
+          </View>
+        )}
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            value={texto}
+            onChangeText={setTexto}
+            placeholder="Digite sua mensagem..."
+            placeholderTextColor={COLORS.gray400}
+            multiline
+            maxLength={500}
+            textAlignVertical="center"
+          />
+          <TouchableOpacity
+            style={[styles.btnEnviar, (!texto.trim() || enviando) && styles.btnEnviarDisabled]}
+            onPress={handleEnviar}
+            disabled={!texto.trim() || enviando}
+            activeOpacity={0.7}
+          >
+            {enviando ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <Ionicons name={mensagemEmEdicao ? 'checkmark' : 'send'} size={20} color={COLORS.white} />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -180,6 +257,11 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     lineHeight: 20,
   },
+  editadoTag: {
+    fontSize: FONTS.sizes.xs,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
 
   // Empty
   emptyContainer: {
@@ -203,12 +285,28 @@ const styles = StyleSheet.create({
 
   // Input
   inputArea: {
-    flexDirection: 'row',
     backgroundColor: COLORS.white,
-    padding: SPACING.sm,
-    alignItems: 'flex-end',
     borderTopWidth: 1,
     borderTopColor: COLORS.gray200,
+  },
+  editandoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    backgroundColor: COLORS.primary + '08',
+    gap: SPACING.sm,
+  },
+  editandoTexto: {
+    flex: 1,
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    padding: SPACING.sm,
+    alignItems: 'flex-end',
   },
   input: {
     flex: 1,
