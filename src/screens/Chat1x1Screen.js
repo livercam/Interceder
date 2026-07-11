@@ -205,28 +205,57 @@ export default function Chat1x1Screen({ route }) {
     });
   }, [limparPreview]);
 
+  // ===== ENVIO DE MÍDIA (IMAGEM E ÁUDIO) =====
   const enviarMidiaPreview = useCallback(async () => {
     const preview = midiaPreview;
     if (!preview || enviando) return;
     setEnviando(true);
+    
     try {
       const token = await currentUser.getIdToken();
-      console.log('[Upload] Iniciando upload para chat:', chatId, 'tipo:', preview.tipo, 'uri:', preview.uri?.substring(0, 60));
-      if (preview.tipo === 'imagem') {
-        const nome = `img_${Date.now()}.jpg`;
-        const urlStorage = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=chat_imagens%2F${chatId}%2F${nome}`;
-        console.log('[Upload] URL Storage:', urlStorage);
-        const uploadResult = await uploadAsync(urlStorage, preview.uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' } });
-        console.log('[Upload] Resultado:', uploadResult.status, uploadResult.status === 200 ? 'OK' : 'FALHA');
-        const urlF = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/chat_imagens%2F${chatId}%2F${nome}?alt=media`;
-        await enviarMensagemChat(chatId, '', currentUser.uid, null, urlF, null);
-      } else if (preview.tipo === 'audio') {
-        await enviarMensagemChat(chatId, '', currentUser.uid, null, null, preview.uri);
+      console.log('[Upload] Iniciando:', preview.tipo, preview.uri.substring(0, 50));
+      
+      const isImagem = preview.tipo === 'imagem';
+      const extensao = isImagem ? '.jpg' : '.m4a';
+      const mimeType = isImagem ? 'image/jpeg' : 'audio/mp4';
+      const pasta = isImagem ? 'chat_imagens' : 'chat_audios';
+      
+      const nomeArquivo = `${isImagem ? 'img' : 'aud'}_${Date.now()}${extensao}`;
+      const pathStorage = `${pasta}%2F${chatId}%2F${nomeArquivo}`;
+      const urlUpload = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=${pathStorage}`;
+
+      // 1. Fazer o Upload (Serve para Áudio e Imagem)
+      const uploadResult = await uploadAsync(urlUpload, preview.uri, { 
+        httpMethod: 'POST', 
+        headers: { 
+          Authorization: `Bearer ${token}`, 
+          'Content-Type': mimeType 
+        } 
+      });
+
+      // 2. Trava de Segurança OBRIGATÓRIA
+      if (uploadResult.status !== 200 && uploadResult.status !== 201) {
+        console.error('[Upload] FALHA NO FIREBASE:', uploadResult.body);
+        throw new Error(`O Firebase Storage recusou o envio (Status ${uploadResult.status}). Verifique as regras do Storage.`);
       }
+
+      // 3. Gerar URL Pública
+      const urlFinal = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/${pathStorage}?alt=media`;
+      
+      // 4. Salvar no Firestore
+      if (isImagem) {
+        await enviarMensagemChat(chatId, '', currentUser.uid, null, urlFinal, null);
+      } else {
+        await enviarMensagemChat(chatId, '', currentUser.uid, null, null, urlFinal);
+      }
+      
       limparPreview();
     } catch (error) {
-      showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar mídia.', buttons: [{ text: 'OK', type: 'default' }] });
-    } finally { setEnviando(false); }
+      console.error("[Upload Catch]", error);
+      showAlert({ title: 'Erro de Upload', message: error.message, buttons: [{ text: 'OK', type: 'default' }] });
+    } finally { 
+      setEnviando(false); 
+    }
   }, [midiaPreview, chatId, currentUser, enviando, limparPreview, showAlert]);
 
   const handleLongPress = useCallback((item) => {
@@ -279,8 +308,6 @@ export default function Chat1x1Screen({ route }) {
     const temImagem = !!item.imagem_url;
     const temAudio = !!item.audio_url;
     const statusMsg = item.status || 'enviado';
-
-    console.log('[Chat] Renderizando msg:', item.id, 'Status:', statusMsg, 'URL:', item.imagem_url?.substring(0, 60));
 
     return (
       <View style={[styles.balaoContainer, ehMinha ? styles.balaoMinha : styles.balaoOutro, temAudio && styles.balaoAudioExpansivel]}>
@@ -421,44 +448,20 @@ const styles = StyleSheet.create({
   balaoOutroFundo: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
   balaoTexto: { fontSize: FONTS.sizes.md, lineHeight: 20 },
 
-  // Imagem com container
   imagemContainer: {
-    width: 200,
-    height: 200,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: '#e5e7eb',
-    alignSelf: 'flex-start',
-    marginBottom: SPACING.xs,
+    width: 200, height: 200, borderRadius: 16, overflow: 'hidden',
+    borderWidth: 0.5, borderColor: '#e5e7eb', alignSelf: 'flex-start', marginBottom: SPACING.xs,
   },
   imagemPlaceholder: {
-    width: 200,
-    height: 200,
-    borderRadius: 16,
-    borderWidth: 0.5,
-    borderColor: COLORS.gray200,
-    backgroundColor: COLORS.gray50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: SPACING.xs,
+    width: 200, height: 200, borderRadius: 16,
+    borderWidth: 0.5, borderColor: COLORS.gray200, backgroundColor: COLORS.gray50,
+    justifyContent: 'center', alignItems: 'center', alignSelf: 'flex-start', marginBottom: SPACING.xs,
   },
-  imagemPlaceholderTexto: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.gray400,
-    marginTop: SPACING.xs,
-  },
+  imagemPlaceholderTexto: { fontSize: FONTS.sizes.xs, color: COLORS.gray400, marginTop: SPACING.xs },
 
   audioBalaoContainer: { backgroundColor: 'transparent', padding: 0, marginBottom: SPACING.xs },
 
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: SPACING.sm,
-    marginTop: 2,
-  },
+  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: SPACING.sm, marginTop: 2 },
   editadoTag: { fontSize: 10, fontStyle: 'italic' },
   statusTexto: { fontSize: 10, fontWeight: '500' },
 
