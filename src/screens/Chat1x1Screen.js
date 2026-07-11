@@ -248,9 +248,9 @@ export default function Chat1x1Screen({ route }) {
     const temAudio = !!item.audio_url;
     const statusMsg = item.status || 'enviado';
     return (
-      <TouchableOpacity activeOpacity={0.7} onLongPress={() => handleLongPress(item)} delayLongPress={400}
-        style={[styles.balaoContainer, ehMinha ? styles.balaoMinha : styles.balaoOutro]}>
-        <View style={[styles.balao, ehMinha ? styles.balaoMinhaFundo : styles.balaoOutroFundo]}>
+      <View style={[styles.balaoContainer, ehMinha ? styles.balaoMinha : styles.balaoOutro, temAudio && styles.balaoAudioExpansivel]}>
+        <TouchableOpacity activeOpacity={0.7} onLongPress={() => handleLongPress(item)} delayLongPress={400}
+          style={[styles.balao, ehMinha ? styles.balaoMinhaFundo : styles.balaoOutroFundo]}>
           {temReply && (
             <View style={styles.replyContainer}>
               <View style={styles.replyBar} />
@@ -263,8 +263,9 @@ export default function Chat1x1Screen({ route }) {
           {temImagem && (
             <Image
               source={{ uri: item.imagem_url }}
-              style={{ width: 200, height: 200, borderRadius: 16, borderWidth: 0.5, borderColor: COLORS.gray200, marginBottom: SPACING.xs }}
+              style={{ width: 200, height: 200, borderRadius: 16, borderWidth: 0.5, borderColor: '#e5e7eb', marginBottom: SPACING.xs }}
               resizeMode="cover"
+              onError={(e) => console.log('[Chat] Erro imagem:', item.imagem_url, e.nativeEvent.error)}
             />
           )}
           {temAudio && (
@@ -277,8 +278,8 @@ export default function Chat1x1Screen({ route }) {
             {foiEditada && <Text style={[styles.editadoTag, { color: ehMinha ? 'rgba(255,255,255,0.7)' : COLORS.gray400 }]}>editado</Text>}
             {ehMinha && <Text style={[styles.statusTexto, { color: ehMinha ? 'rgba(255,255,255,0.6)' : COLORS.gray400 }]}>{STATUS_LABELS[statusMsg] || 'Enviado'}</Text>}
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
   }, [currentUser, handleLongPress]);
 
@@ -376,9 +377,10 @@ const styles = StyleSheet.create({
   listaContent: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
   uploadingBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, paddingVertical: SPACING.xs, gap: SPACING.sm },
   uploadingText: { color: COLORS.white, fontSize: FONTS.sizes.sm, fontWeight: '600' },
-  balaoContainer: { marginBottom: SPACING.xs, maxWidth: '80%' },
+  balaoContainer: { marginBottom: SPACING.xs, maxWidth: '80%', alignSelf: 'flex-start' },
   balaoMinha: { alignSelf: 'flex-end' },
   balaoOutro: { alignSelf: 'flex-start' },
+  balaoAudioExpansivel: { maxWidth: '90%' },
   balao: { borderRadius: 16, paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
   balaoMinhaFundo: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
   balaoOutroFundo: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
@@ -386,7 +388,6 @@ const styles = StyleSheet.create({
 
   audioBalaoContainer: { backgroundColor: 'transparent', padding: 0, marginBottom: SPACING.xs },
 
-  // Status de leitura e editado na mesma row
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
