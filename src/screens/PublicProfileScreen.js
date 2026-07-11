@@ -1,6 +1,6 @@
 // Tela de Perfil Público v3 - Jornada Espiritual e Conectividade
-// Design de alta fidelidade: cabeçalho moderno, vibe, tags, biografia,
-// mantém conquistas, células, pedidos, testemunhos, estatísticas e endossos
+// Design Pixel Perfect: fundo desfocado, sobreposição branca, avatar com selo,
+// botões empilhados à esquerda + vibe card à direita
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -114,6 +114,7 @@ export default function PublicProfileScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [endossando, setEndossando] = useState(false);
   const [imagemComErro, setImagemComErro] = useState(false);
+  const [bgImagemComErro, setBgImagemComErro] = useState(false);
   const [ultimosPedidos, setUltimosPedidos] = useState([]);
   const [testemunhos, setTestemunhos] = useState([]);
   const [celulas, setCelulas] = useState([]);
@@ -130,6 +131,7 @@ export default function PublicProfileScreen({ route, navigation }) {
         }
         setProfile(dados);
         setImagemComErro(false);
+        setBgImagemComErro(false);
 
         // Carregar dados adicionais em paralelo
         const promises = [];
@@ -340,247 +342,299 @@ export default function PublicProfileScreen({ route, navigation }) {
   const qtdIntercessoes = statsData.oracoes_hoje || 0;
   const qtdTestemunhos = statsData.testemunhos || 0;
 
+  const temFotoBg = profile.foto_url && !bgImagemComErro;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* ===== HEADER (Alta Fidelidade) ===== */}
-      <View style={styles.headerCard}>
-        <View style={styles.headerContent}>
-          {/* Avatar Centralizado */}
-          <View style={styles.fotoWrapper}>
-            {profile.foto_url && !imagemComErro ? (
-              <Image source={{ uri: profile.foto_url }} style={styles.fotoPerfil} onError={() => setImagemComErro(true)} />
-            ) : (
-              <View style={styles.avatarContainer}>
-                <Text style={styles.avatarText}>{profile.nome?.charAt(0)?.toUpperCase() || '?'}</Text>
+    <View style={styles.container}>
+      {/* ===== FUNDO DESFOCADO ===== */}
+      {temFotoBg ? (
+        <Image
+          source={{ uri: profile.foto_url }}
+          style={styles.backgroundBlur}
+          blurRadius={20}
+          onError={() => setBgImagemComErro(true)}
+        />
+      ) : (
+        <View style={[styles.backgroundBlur, { backgroundColor: '#334155' }]} />
+      )}
+
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ===== CONTAINER BRANCO PRINCIPAL ===== */}
+        <View style={styles.mainCard}>
+          {/* ===== AVATAR ===== */}
+          <View style={styles.avatarSection}>
+            <View style={styles.fotoWrapper}>
+              {profile.foto_url && !imagemComErro ? (
+                <Image
+                  source={{ uri: profile.foto_url }}
+                  style={styles.fotoPerfil}
+                  onError={() => setImagemComErro(true)}
+                />
+              ) : (
+                <View style={styles.avatarContainer}>
+                  <Text style={styles.avatarText}>
+                    {profile.nome?.charAt(0)?.toUpperCase() || '?'}
+                  </Text>
+                </View>
+              )}
+              {/* Selo de Verificado */}
+              {isReconhecido && (
+                <View style={styles.seloVerificado}>
+                  <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
+                </View>
+              )}
+            </View>
+
+            {/* Nome */}
+            <Text style={styles.nome}>
+              {formatarNomeCurto(profile.nome) || 'Usuário'}
+              {profile.isPremium === true ? ' 💎' : ''}
+            </Text>
+
+            {/* Título Ministerial */}
+            <Text style={styles.tituloMinisterial}>{tituloLabel}</Text>
+          </View>
+
+          {/* ===== STATISTICS ===== */}
+          <View style={styles.statsHeaderSection}>
+            <Text style={styles.statsSectionLabel}>ESTATÍSTICAS</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Ionicons name="people-outline" size={16} color={COLORS.gray500} />
+                <Text style={styles.statItemText}>0 Seguidores</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Ionicons name="person-outline" size={16} color={COLORS.gray500} />
+                <Text style={styles.statItemText}>0 Seguindo</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* ===== BIOGRAFIA ===== */}
+          {profile.biografia ? (
+            <View style={styles.bioSection}>
+              <Text style={styles.bioSectionLabel}>SOBRE</Text>
+              <Text style={styles.bioText}>{profile.biografia}</Text>
+            </View>
+          ) : null}
+
+          {/* ===== BOTÕES + MINHA VIBE (ROW) ===== */}
+          <View style={styles.acoesVibeRow}>
+            {/* Coluna Esquerda - Botões */}
+            <View style={styles.acoesColuna}>
+              <TouchableOpacity
+                style={styles.btnSeguir}
+                activeOpacity={0.85}
+                onPress={() => Alert.alert('Em breve', 'Funcionalidade de seguir será implementada em breve.')}
+              >
+                <Text style={styles.btnSeguirText}>SEGUIR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnMensagem}
+                activeOpacity={0.85}
+                onPress={() => Alert.alert('Em breve', 'Funcionalidade de mensagem será implementada em breve.')}
+              >
+                <Text style={styles.btnMensagemText}>MENSAGEM</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Coluna Direita - Minha Vibe (card quadrado) */}
+            {vibeData && (
+              <View style={styles.vibeCardQuadrado}>
+                <Text style={styles.vibeCardIconeGrande}>{vibeData.icone}</Text>
+                <Text style={styles.vibeCardLabelPequeno}>{vibeData.label}</Text>
               </View>
             )}
           </View>
 
-          {/* Nome grande e negrito */}
-          <Text style={styles.nome}>{formatarNomeCurto(profile.nome) || 'Usuário'}</Text>
-          {profile.isPremium === true && <Text style={styles.seloPremium}>💎</Text>}
-
-          {/* Título Ministerial abaixo do nome */}
-          {!isReconhecido ? (
-            <View style={[styles.tituloTag, styles.tituloTagNaoVerificado]}>
-              <Text style={[styles.tituloTagText, styles.tituloTagTextNaoVerificado]}>{tituloLabel}</Text>
-            </View>
-          ) : profile?.verificado_lideranca === true ? (
-            <View style={[styles.tituloTag, styles.tituloTagVerificadoLideranca]}>
-              <Text style={[styles.tituloTagText, styles.tituloTagTextVerificadoLideranca]}>{tituloLabel}</Text>
-              <Text style={{ fontSize: 12, marginLeft: 4 }}>🛡️</Text>
-            </View>
-          ) : (
-            <View style={[styles.tituloTag, styles.tituloTagVerificadoComunidade]}>
-              <Text style={[styles.tituloTagText, styles.tituloTagTextVerificadoComunidade]}>{tituloLabel}</Text>
-              <Text style={{ fontSize: 12, marginLeft: 4 }}>✅</Text>
+          {/* ===== TAGS DE INTERESSE ===== */}
+          {profile.interesses?.length > 0 && (
+            <View style={styles.interessesSection}>
+              <Text style={styles.sectionTitle}>Tags de Interesse</Text>
+              <View style={styles.interessesRow}>
+                {profile.interesses.map((tag, idx) => (
+                  <InteressePill key={idx} label={tag} />
+                ))}
+              </View>
             </View>
           )}
 
-          {/* Estatísticas (Mockup Fase 2) */}
-          <Text style={styles.statsMockup}>
-            👥 Seguidores: 0  |  👤 Seguindo: 0
-          </Text>
-        </View>
-      </View>
-
-      {/* ===== BIOGRAFIA E AÇÕES RÁPIDAS ===== */}
-      {profile.biografia ? (
-        <View style={styles.bioContainer}>
-          <Text style={styles.bioText}>{profile.biografia}</Text>
-        </View>
-      ) : null}
-
-      {/* Botões de Ação */}
-      <View style={styles.acoesRow}>
-        <TouchableOpacity
-          style={styles.btnSeguir}
-          activeOpacity={0.85}
-          onPress={() => Alert.alert('Em breve', 'Funcionalidade de seguir será implementada em breve.')}
-        >
-          <Text style={styles.btnSeguirText}>Seguir</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.btnMensagem}
-          activeOpacity={0.85}
-          onPress={() => Alert.alert('Em breve', 'Funcionalidade de mensagem será implementada em breve.')}
-        >
-          <Text style={styles.btnMensagemText}>Mensagem</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ===== CARTÃO "MINHA VIBE" ===== */}
-      {vibeData && (
-        <View style={styles.vibeCard}>
-          <Text style={styles.vibeCardTitle}>Minha Vibe</Text>
-          <View style={styles.vibeCardContent}>
-            <Text style={styles.vibeCardIcone}>{vibeData.icone}</Text>
-            <Text style={styles.vibeCardLabel}>{vibeData.label}</Text>
-          </View>
-        </View>
-      )}
-
-      {/* ===== TAGS DE INTERESSE ===== */}
-      {profile.interesses?.length > 0 && (
-        <View style={styles.interessesSection}>
-          <Text style={styles.sectionTitle}>Tags de Interesse</Text>
-          <View style={styles.interessesRow}>
-            {profile.interesses.map((tag, idx) => (
-              <InteressePill key={idx} label={tag} />
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* ===== CONQUISTAS ===== */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🏅 Conquistas</Text>
-        <View style={styles.conquistasGrid}>
-          {conquistas.map((c, i) => (
-            <ConquistaBadge key={i} icone={c.icone} label={c.label} ativo={c.ativo} descricao={c.descricao} />
-          ))}
-        </View>
-      </View>
-
-      {/* ===== CÉLULAS ===== */}
-      {celulas.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏠 Células</Text>
-          <View style={styles.celulasList}>
-            {celulas.map((cel) => (
-              <View key={cel.id} style={styles.celulaCard}>
-                <Ionicons name="home" size={18} color={COLORS.primary} />
-                <Text style={styles.celulaNome}>{cel.nome}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* ===== ÚLTIMOS PEDIDOS ===== */}
-      {ultimosPedidos.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🙏 Últimos Pedidos</Text>
-          {ultimosPedidos.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              style={styles.itemCard}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('PedidoDetalhes', { pedidoId: p.id })}
-            >
-              <View style={styles.itemHeader}>
-                <Text style={styles.itemCategoria}>{p.categoria || 'Geral'}</Text>
-                <Text style={styles.itemData}>{formatDataRelativa(p.createdAt)}</Text>
-              </View>
-              <Text style={styles.itemTexto} numberOfLines={2}>
-                {p.texto || '(sem texto)'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* ===== TESTEMUNHOS ===== */}
-      {testemunhos.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🕊️ Testemunhos</Text>
-          {testemunhos.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              style={styles.itemCard}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('TestemunhoDetalhes', { testemunhoId: t.id })}
-            >
-              <View style={styles.itemHeader}>
-                <Text style={styles.itemGlorias}>🙌 {t.glorias || 0}</Text>
-                <Text style={styles.itemData}>{formatDataRelativa(t.criadoEm)}</Text>
-              </View>
-              <Text style={styles.itemTexto} numberOfLines={2}>
-                {t.texto || '(sem texto)'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* ===== ESTATÍSTICAS ===== */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📈 Estatísticas</Text>
-        <View style={styles.statsGrid}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumero}>{qtdPedidos}</Text>
-            <Text style={styles.statLabel}>Pedidos</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumero}>{qtdTestemunhos}</Text>
-            <Text style={styles.statLabel}>Testemunhos</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumero}>{contagemReal}</Text>
-            <Text style={styles.statLabel}>Endossos</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumero}>{qtdIntercessoes}</Text>
-            <Text style={styles.statLabel}>Intercessões</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* ===== RECONHECIMENTO ===== */}
-      {!ehMembro && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🙌 Reconhecimento Ministerial</Text>
-          <View style={styles.card}>
-            <View style={{ alignItems: 'center', marginBottom: SPACING.md }}>
-              <Text style={styles.endossoNumero}>{contagemReal}</Text>
-              <Text style={styles.endossoLabel}>
-                {contagemReal === 1 ? 'ponto de endosso' : 'pontos de endosso'}
-              </Text>
+          {/* ===== CONQUISTAS ===== */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🏅 Conquistas</Text>
+            <View style={styles.conquistasGrid}>
+              {conquistas.map((c, i) => (
+                <ConquistaBadge
+                  key={i}
+                  icone={c.icone}
+                  label={c.label}
+                  ativo={c.ativo}
+                  descricao={c.descricao}
+                />
+              ))}
             </View>
+          </View>
 
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, {
-                width: isReconhecido ? '100%' : `${Math.min((contagemReal / ENDOSSOS_MINIMOS_RECONHECIMENTO) * 100, 100)}%`,
-                backgroundColor: isReconhecido ? '#4CAF50' : COLORS.primary,
-              }]} />
+          {/* ===== CÉLULAS ===== */}
+          {celulas.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🏠 Células</Text>
+              <View style={styles.celulasList}>
+                {celulas.map((cel) => (
+                  <View key={cel.id} style={styles.celulaCard}>
+                    <Ionicons name="home" size={18} color={COLORS.primary} />
+                    <Text style={styles.celulaNome}>{cel.nome}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-            <Text style={styles.progressLabel}>
-              {isReconhecido
-                ? '✅ Ministério Reconhecido!'
-                : `${ENDOSSOS_MINIMOS_RECONHECIMENTO - contagemReal} endosso(s) para reconhecimento`
-              }
-            </Text>
+          )}
 
-            {!ehProprio && currentUser && (
-              <TouchableOpacity
-                style={[styles.endossarBtn, jaEndossou && styles.endossarBtnRemover, endossando && { opacity: 0.7 }]}
-                onPress={handleEndossar}
-                disabled={endossando}
-                activeOpacity={0.85}
-              >
-                {endossando ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <>
-                    <Text style={{ fontSize: 18, marginRight: 8 }}>{jaEndossou ? '❌' : '🙌'}</Text>
-                    <Text style={styles.endossarBtnText}>
-                      {jaEndossou ? 'Remover Endosso' : 'Endossar Ministério'}
-                    </Text>
-                  </>
+          {/* ===== ÚLTIMOS PEDIDOS ===== */}
+          {ultimosPedidos.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🙏 Últimos Pedidos</Text>
+              {ultimosPedidos.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.itemCard}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('PedidoDetalhes', { pedidoId: p.id })}
+                >
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemCategoria}>{p.categoria || 'Geral'}</Text>
+                    <Text style={styles.itemData}>{formatDataRelativa(p.createdAt)}</Text>
+                  </View>
+                  <Text style={styles.itemTexto} numberOfLines={2}>
+                    {p.texto || '(sem texto)'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* ===== TESTEMUNHOS ===== */}
+          {testemunhos.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🕊️ Testemunhos</Text>
+              {testemunhos.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={styles.itemCard}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('TestemunhoDetalhes', { testemunhoId: t.id })}
+                >
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemGlorias}>🙌 {t.glorias || 0}</Text>
+                    <Text style={styles.itemData}>{formatDataRelativa(t.criadoEm)}</Text>
+                  </View>
+                  <Text style={styles.itemTexto} numberOfLines={2}>
+                    {t.texto || '(sem texto)'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* ===== ESTATÍSTICAS ===== */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📈 Estatísticas</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumero}>{qtdPedidos}</Text>
+                <Text style={styles.statLabel}>Pedidos</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumero}>{qtdTestemunhos}</Text>
+                <Text style={styles.statLabel}>Testemunhos</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumero}>{contagemReal}</Text>
+                <Text style={styles.statLabel}>Endossos</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statNumero}>{qtdIntercessoes}</Text>
+                <Text style={styles.statLabel}>Intercessões</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* ===== RECONHECIMENTO ===== */}
+          {!ehMembro && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🙌 Reconhecimento Ministerial</Text>
+              <View style={styles.card}>
+                <View style={{ alignItems: 'center', marginBottom: SPACING.md }}>
+                  <Text style={styles.endossoNumero}>{contagemReal}</Text>
+                  <Text style={styles.endossoLabel}>
+                    {contagemReal === 1 ? 'ponto de endosso' : 'pontos de endosso'}
+                  </Text>
+                </View>
+
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: isReconhecido
+                          ? '100%'
+                          : `${Math.min((contagemReal / ENDOSSOS_MINIMOS_RECONHECIMENTO) * 100, 100)}%`,
+                        backgroundColor: isReconhecido ? '#4CAF50' : COLORS.primary,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressLabel}>
+                  {isReconhecido
+                    ? '✅ Ministério Reconhecido!'
+                    : `${ENDOSSOS_MINIMOS_RECONHECIMENTO - contagemReal} endosso(s) para reconhecimento`}
+                </Text>
+
+                {!ehProprio && currentUser && (
+                  <TouchableOpacity
+                    style={[
+                      styles.endossarBtn,
+                      jaEndossou && styles.endossarBtnRemover,
+                      endossando && { opacity: 0.7 },
+                    ]}
+                    onPress={handleEndossar}
+                    disabled={endossando}
+                    activeOpacity={0.85}
+                  >
+                    {endossando ? (
+                      <ActivityIndicator color="#FFF" size="small" />
+                    ) : (
+                      <>
+                        <Text style={{ fontSize: 18, marginRight: 8 }}>
+                          {jaEndossou ? '❌' : '🙌'}
+                        </Text>
+                        <Text style={styles.endossarBtnText}>
+                          {jaEndossou ? 'Remover Endosso' : 'Endossar Ministério'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
-            )}
-            {!currentUser && (
-              <View style={styles.loginCard}>
-                <Text style={{ color: COLORS.gray500, fontSize: 13 }}>🔒 Faça login para endossar</Text>
+                {!currentUser && (
+                  <View style={styles.loginCard}>
+                    <Text style={{ color: COLORS.gray500, fontSize: 13 }}>
+                      🔒 Faça login para endossar
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-        </View>
-      )}
+            </View>
+          )}
 
-      <View style={{ height: 60 }} />
-    </ScrollView>
+          <View style={{ height: 60 }} />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -588,28 +642,55 @@ export default function PublicProfileScreen({ route, navigation }) {
 // Estilos
 // ============================================================
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  scrollContent: { paddingBottom: SPACING.xxl },
-  containerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
-  loadingText: { marginTop: SPACING.md, color: COLORS.gray500, fontSize: FONTS.sizes.md },
-
-  // Header (Alta Fidelidade)
-  headerCard: {
-    backgroundColor: COLORS.white,
-    borderBottomLeftRadius: RADIUS.lg,
-    borderBottomRightRadius: RADIUS.lg,
-    ...SHADOWS.md,
-    overflow: 'hidden',
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
   },
-  headerContent: {
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.xxl,
+  },
+  containerLoading: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.gray500,
+    fontSize: FONTS.sizes.md,
+  },
+
+  // ===== FUNDO DESFOCADO =====
+  backgroundBlur: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+  },
+
+  // ===== CONTAINER BRANCO PRINCIPAL =====
+  mainCard: {
+    backgroundColor: '#FFFFFF',
+    marginTop: 120,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingBottom: SPACING.lg,
+    minHeight: 600,
+  },
+
+  // ===== AVATAR SECTION =====
+  avatarSection: {
+    alignItems: 'center',
+    marginTop: -45,
   },
   fotoWrapper: {
     position: 'relative',
-    marginBottom: SPACING.md,
+    alignSelf: 'center',
   },
   fotoPerfil: {
     width: 90,
@@ -625,54 +706,81 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.md,
+    borderWidth: 3,
+    borderColor: COLORS.white,
   },
   avatarText: {
     color: '#FFF',
     fontSize: 36,
     fontWeight: 'bold',
   },
+  seloVerificado: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+  },
   nome: {
     fontSize: 22,
     fontWeight: '800',
     color: COLORS.gray800,
     textAlign: 'center',
-  },
-  seloPremium: {
-    fontSize: 22,
-    marginTop: 4,
-  },
-
-  // Título Ministerial
-  tituloTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
     marginTop: SPACING.sm,
   },
-  tituloTagNaoVerificado: { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
-  tituloTagTextNaoVerificado: { color: '#888', fontWeight: '600' },
-  tituloTagVerificadoComunidade: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
-  tituloTagTextVerificadoComunidade: { color: '#1D4ED8', fontWeight: '700' },
-  tituloTagVerificadoLideranca: { backgroundColor: '#FFFBEB', borderColor: '#F59E0B' },
-  tituloTagTextVerificadoLideranca: { color: '#92400E', fontWeight: '800' },
-  tituloTagText: { fontSize: FONTS.sizes.sm, fontWeight: '700' },
-
-  // Estatísticas Mockup
-  statsMockup: {
-    fontSize: FONTS.sizes.sm,
+  tituloMinisterial: {
+    fontSize: 14,
     color: COLORS.gray500,
-    marginTop: SPACING.md,
     textAlign: 'center',
+    marginTop: SPACING.xs,
   },
 
-  // Bio
-  bioContainer: {
+  // ===== STATISTICS =====
+  statsHeaderSection: {
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+  },
+  statsSectionLabel: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '700',
+    color: COLORS.gray400,
+    letterSpacing: 1.5,
+    marginBottom: SPACING.sm,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  statItemText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.gray500,
+    fontWeight: '500',
+  },
+  statDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: COLORS.gray300,
+    marginHorizontal: SPACING.md,
+  },
+
+  // ===== BIOGRAFIA =====
+  bioSection: {
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.lg,
+  },
+  bioSectionLabel: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '700',
+    color: COLORS.gray400,
+    letterSpacing: 1.5,
+    marginBottom: SPACING.sm,
   },
   bioText: {
     fontSize: FONTS.sizes.md,
@@ -681,28 +789,34 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
 
-  // Ações Row
-  acoesRow: {
+  // ===== AÇÕES + VIBE ROW =====
+  acoesVibeRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
-    marginTop: SPACING.md,
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    marginTop: SPACING.lg,
     marginHorizontal: SPACING.lg,
   },
-  btnSeguir: {
+  acoesColuna: {
     flex: 1,
+    marginRight: SPACING.md,
+    justifyContent: 'center',
+  },
+  btnSeguir: {
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.full,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: SPACING.sm,
   },
   btnSeguirText: {
     color: COLORS.white,
-    fontSize: FONTS.sizes.md,
+    fontSize: FONTS.sizes.sm,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   btnMensagem: {
-    flex: 1,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
     borderRadius: RADIUS.full,
@@ -712,46 +826,37 @@ const styles = StyleSheet.create({
   },
   btnMensagemText: {
     color: COLORS.primary,
-    fontSize: FONTS.sizes.md,
+    fontSize: FONTS.sizes.sm,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
 
-  // Cartão Minha Vibe
-  vibeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
-    ...SHADOWS.md,
-    shadowOpacity: 0.05,
-    elevation: 2,
-  },
-  vibeCardTitle: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: 'bold',
-    color: COLORS.gray800,
-    marginBottom: SPACING.sm,
-  },
-  vibeCardContent: {
+  // ===== VIBE CARD QUADRADO =====
+  vibeCardQuadrado: {
+    width: 110,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary + '40',
+    backgroundColor: COLORS.primary + '05',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: SPACING.sm,
   },
-  vibeCardIcone: {
-    fontSize: 48,
+  vibeCardIconeGrande: {
+    fontSize: 36,
     marginBottom: SPACING.xs,
   },
-  vibeCardLabel: {
-    fontSize: FONTS.sizes.lg,
-    fontWeight: '700',
-    color: COLORS.gray700,
+  vibeCardLabelPequeno: {
+    fontSize: FONTS.sizes.xs,
+    fontWeight: '600',
+    color: COLORS.gray600,
     textAlign: 'center',
   },
 
-  // Interesses
+  // ===== INTERESSES =====
   interessesSection: {
     marginHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.xl,
   },
   interessesRow: {
     flexDirection: 'row',
@@ -772,7 +877,7 @@ const styles = StyleSheet.create({
     color: COLORS.gray600,
   },
 
-  // Seções
+  // ===== SEÇÕES =====
   section: {
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.xl,
@@ -790,7 +895,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
   },
 
-  // Conquistas
+  // ===== CONQUISTAS =====
   conquistasGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -820,7 +925,7 @@ const styles = StyleSheet.create({
   conquistaLabelAtiva: { color: '#166534' },
   conquistaLabelInativa: { color: '#9CA3AF' },
 
-  // Células
+  // ===== CÉLULAS =====
   celulasList: { gap: SPACING.sm },
   celulaCard: {
     flexDirection: 'row',
@@ -833,7 +938,7 @@ const styles = StyleSheet.create({
   },
   celulaNome: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.gray700 },
 
-  // Itens (pedidos/testemunhos)
+  // ===== ITENS =====
   itemCard: {
     backgroundColor: '#FFF',
     borderRadius: RADIUS.md,
@@ -859,7 +964,7 @@ const styles = StyleSheet.create({
   itemData: { fontSize: FONTS.sizes.xs, color: COLORS.gray400 },
   itemTexto: { fontSize: FONTS.sizes.sm, color: COLORS.gray600, lineHeight: 20 },
 
-  // Estatísticas
+  // ===== ESTATÍSTICAS GRID =====
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -885,7 +990,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Endossos
+  // ===== ENDOSSOS =====
   endossoNumero: { fontSize: 40, fontWeight: 'bold', color: COLORS.primary },
   endossoLabel: { fontSize: FONTS.sizes.sm, color: COLORS.gray500, marginTop: SPACING.xs },
   progressBar: {
@@ -896,7 +1001,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   progressFill: { height: '100%', borderRadius: RADIUS.full },
-  progressLabel: { fontSize: FONTS.sizes.xs, color: COLORS.gray500, textAlign: 'center', marginBottom: SPACING.md },
+  progressLabel: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray500,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
   endossarBtn: {
     flexDirection: 'row',
     alignItems: 'center',
