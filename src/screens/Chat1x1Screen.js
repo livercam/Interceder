@@ -387,9 +387,14 @@ export default function Chat1x1Screen({ route }) {
 
   const keyExtractor = useCallback((item) => item.id, []);
   const temPreviewMidia = midiaPreview !== null && !enviando;
+  const isBotaoDesativado = !texto || texto.trim().length === 0 || enviando;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {enviando && (
         <View style={styles.uploadingBar}>
           <ActivityIndicator size="small" color={COLORS.white} />
@@ -471,8 +476,12 @@ export default function Chat1x1Screen({ route }) {
             <TextInput ref={inputRef} style={[styles.input, gravando && { opacity: 0.3 }]} value={texto} onChangeText={setTexto}
               placeholder={gravando ? 'Gravando áudio...' : 'Digite sua mensagem...'} placeholderTextColor={COLORS.gray400}
               multiline maxLength={500} textAlignVertical="center" editable={!gravando} />
-            <TouchableOpacity style={[styles.btnEnviar, (!texto.trim() || enviando) && styles.btnEnviarDisabled]}
-              onPress={handleEnviar} disabled={!texto.trim() || enviando} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={[styles.btnEnviar, isBotaoDesativado && styles.btnEnviarDisabled]}
+              onPress={handleEnviar} 
+              disabled={isBotaoDesativado} 
+              activeOpacity={0.7}
+            >
               {enviando ? <ActivityIndicator size="small" color={COLORS.white} /> : <Ionicons name={mensagemEmEdicao ? 'checkmark' : 'send'} size={20} color={COLORS.white} />}
             </TouchableOpacity>
           </View>
