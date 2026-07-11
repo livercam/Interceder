@@ -432,7 +432,7 @@ export const excluirMensagemChat = async (chatId, mensagemId) => {
           const storage = getStorage();
           const arquivoRef = ref(storage, midiaUrl);
           await deleteObject(arquivoRef);
-          console.log('[Exclusão] Mídia apagada do Storage com sucesso.');
+          console.log('[Exclusão] Arquivo obliterado do Storage:', midiaUrl);
         } catch (storageErr) {
           // Ignora erro 404 (arquivo já não existia) para não travar a exclusão
           console.warn('[Exclusão] Erro ao apagar mídia do Storage:', storageErr.message);
