@@ -1,6 +1,6 @@
-// Tela de Perfil Público v2 - Completo
-// Mostra: foto, nome, cargo, biografia, células, pedidos, testemunhos,
-// estatísticas, conquistas, endossos, última atividade
+// Tela de Perfil Público v3 - Jornada Espiritual e Conectividade
+// Design de alta fidelidade: cabeçalho moderno, vibe, tags, biografia,
+// mantém conquistas, células, pedidos, testemunhos, estatísticas e endossos
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -42,6 +42,14 @@ const TITULOS_MINISTERIAIS = [
   { value: 'pastor', label: 'Pastor' },
 ];
 
+// Mapa de Vibes para exibição no perfil público
+const VIBE_MAP = {
+  oracao: { icone: '🛐', label: 'Em Oração' },
+  estudo: { icone: '📖', label: 'Focado na Palavra' },
+  servir: { icone: '🙌', label: 'Servindo' },
+  celula: { icone: '🤝', label: 'Em Célula' },
+};
+
 // ============================================================
 // Helpers
 // ============================================================
@@ -80,6 +88,17 @@ function ConquistaBadge({ icone, label, ativo, descricao }) {
       <Text style={[styles.conquistaLabel, ativo ? styles.conquistaLabelAtiva : styles.conquistaLabelInativa]}>
         {label}
       </Text>
+    </View>
+  );
+}
+
+// ============================================================
+// Componente de Pílula de Interesse
+// ============================================================
+function InteressePill({ label }) {
+  return (
+    <View style={styles.interessePill}>
+      <Text style={styles.interessePillText}>{label}</Text>
     </View>
   );
 }
@@ -182,6 +201,9 @@ export default function PublicProfileScreen({ route, navigation }) {
   const tituloLabel = TITULOS_MINISTERIAIS.find(
     (t) => t.value === profile?.titulo_ministerial
   )?.label || 'Membro';
+
+  // Dados da Vibe
+  const vibeData = profile?.vibe_atual ? VIBE_MAP[profile.vibe_atual] : null;
 
   // Computar conquistas
   const conquistas = useMemo(() => {
@@ -320,10 +342,10 @@ export default function PublicProfileScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* ===== HEADER ===== */}
+      {/* ===== HEADER (Alta Fidelidade) ===== */}
       <View style={styles.headerCard}>
         <View style={styles.headerContent}>
-          {/* Avatar */}
+          {/* Avatar Centralizado */}
           <View style={styles.fotoWrapper}>
             {profile.foto_url && !imagemComErro ? (
               <Image source={{ uri: profile.foto_url }} style={styles.fotoPerfil} onError={() => setImagemComErro(true)} />
@@ -334,17 +356,14 @@ export default function PublicProfileScreen({ route, navigation }) {
             )}
           </View>
 
-          {/* Nome */}
-          <View style={styles.nomeRow}>
-            <Text style={styles.nome}>{formatarNomeCurto(profile.nome) || 'Usuário'}</Text>
-            {profile.isPremium === true && <Text style={styles.seloPremium}>💎</Text>}
-          </View>
+          {/* Nome grande e negrito */}
+          <Text style={styles.nome}>{formatarNomeCurto(profile.nome) || 'Usuário'}</Text>
+          {profile.isPremium === true && <Text style={styles.seloPremium}>💎</Text>}
 
-          {/* Cargo */}
+          {/* Título Ministerial abaixo do nome */}
           {!isReconhecido ? (
             <View style={[styles.tituloTag, styles.tituloTagNaoVerificado]}>
               <Text style={[styles.tituloTagText, styles.tituloTagTextNaoVerificado]}>{tituloLabel}</Text>
-              <Text style={{ fontSize: 12, marginLeft: 4 }}>⚠️</Text>
             </View>
           ) : profile?.verificado_lideranca === true ? (
             <View style={[styles.tituloTag, styles.tituloTagVerificadoLideranca]}>
@@ -358,22 +377,60 @@ export default function PublicProfileScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* Data de cadastro */}
-          {dataMembro && (
-            <Text style={styles.membroDesde}>Membro desde {formatDate(dataMembro)}</Text>
-          )}
+          {/* Estatísticas (Mockup Fase 2) */}
+          <Text style={styles.statsMockup}>
+            👥 Seguidores: 0  |  👤 Seguindo: 0
+          </Text>
         </View>
       </View>
 
-      {/* ===== BIOGRAFIA ===== */}
+      {/* ===== BIOGRAFIA E AÇÕES RÁPIDAS ===== */}
       {profile.biografia ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📝 Sobre</Text>
-          <View style={styles.card}>
-            <Text style={styles.bioText}>{profile.biografia}</Text>
-          </View>
+        <View style={styles.bioContainer}>
+          <Text style={styles.bioText}>{profile.biografia}</Text>
         </View>
       ) : null}
+
+      {/* Botões de Ação */}
+      <View style={styles.acoesRow}>
+        <TouchableOpacity
+          style={styles.btnSeguir}
+          activeOpacity={0.85}
+          onPress={() => Alert.alert('Em breve', 'Funcionalidade de seguir será implementada em breve.')}
+        >
+          <Text style={styles.btnSeguirText}>Seguir</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.btnMensagem}
+          activeOpacity={0.85}
+          onPress={() => Alert.alert('Em breve', 'Funcionalidade de mensagem será implementada em breve.')}
+        >
+          <Text style={styles.btnMensagemText}>Mensagem</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ===== CARTÃO "MINHA VIBE" ===== */}
+      {vibeData && (
+        <View style={styles.vibeCard}>
+          <Text style={styles.vibeCardTitle}>Minha Vibe</Text>
+          <View style={styles.vibeCardContent}>
+            <Text style={styles.vibeCardIcone}>{vibeData.icone}</Text>
+            <Text style={styles.vibeCardLabel}>{vibeData.label}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* ===== TAGS DE INTERESSE ===== */}
+      {profile.interesses?.length > 0 && (
+        <View style={styles.interessesSection}>
+          <Text style={styles.sectionTitle}>Tags de Interesse</Text>
+          <View style={styles.interessesRow}>
+            {profile.interesses.map((tag, idx) => (
+              <InteressePill key={idx} label={tag} />
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* ===== CONQUISTAS ===== */}
       <View style={styles.section}>
@@ -531,25 +588,71 @@ export default function PublicProfileScreen({ route, navigation }) {
 // Estilos
 // ============================================================
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
   scrollContent: { paddingBottom: SPACING.xxl },
   containerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
   loadingText: { marginTop: SPACING.md, color: COLORS.gray500, fontSize: FONTS.sizes.md },
 
-  // Header
-  headerCard: { backgroundColor: '#F2D5C4', borderBottomWidth: 6, borderBottomColor: '#F8E0D4', ...SHADOWS.md, overflow: 'hidden' },
-  headerContent: { alignItems: 'center', paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl, paddingBottom: SPACING.lg },
-  fotoWrapper: { position: 'relative', marginBottom: SPACING.md },
-  fotoPerfil: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: COLORS.primary },
-  avatarContainer: { width: 100, height: 100, borderRadius: 50, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center', ...SHADOWS.md },
-  avatarText: { color: '#FFF', fontSize: 40, fontWeight: 'bold' },
-  nomeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
-  nome: { fontSize: FONTS.sizes.xxl, fontWeight: 'bold', color: COLORS.gray800 },
-  seloPremium: { fontSize: 22 },
-  membroDesde: { fontSize: FONTS.sizes.sm, color: COLORS.gray500, marginTop: SPACING.sm },
+  // Header (Alta Fidelidade)
+  headerCard: {
+    backgroundColor: COLORS.white,
+    borderBottomLeftRadius: RADIUS.lg,
+    borderBottomRightRadius: RADIUS.lg,
+    ...SHADOWS.md,
+    overflow: 'hidden',
+  },
+  headerContent: {
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
+  },
+  fotoWrapper: {
+    position: 'relative',
+    marginBottom: SPACING.md,
+  },
+  fotoPerfil: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: COLORS.white,
+  },
+  avatarContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.md,
+  },
+  avatarText: {
+    color: '#FFF',
+    fontSize: 36,
+    fontWeight: 'bold',
+  },
+  nome: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.gray800,
+    textAlign: 'center',
+  },
+  seloPremium: {
+    fontSize: 22,
+    marginTop: 4,
+  },
 
   // Título Ministerial
-  tituloTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm, borderRadius: RADIUS.full, borderWidth: 1 },
+  tituloTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    marginTop: SPACING.sm,
+  },
   tituloTagNaoVerificado: { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
   tituloTagTextNaoVerificado: { color: '#888', fontWeight: '600' },
   tituloTagVerificadoComunidade: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
@@ -558,19 +661,160 @@ const styles = StyleSheet.create({
   tituloTagTextVerificadoLideranca: { color: '#92400E', fontWeight: '800' },
   tituloTagText: { fontSize: FONTS.sizes.sm, fontWeight: '700' },
 
-  // Seções
-  section: { marginHorizontal: SPACING.lg, marginTop: SPACING.xl },
-  sectionTitle: { fontSize: FONTS.sizes.lg, fontWeight: 'bold', color: COLORS.gray800, marginBottom: SPACING.sm },
-  card: { backgroundColor: '#FFF', borderRadius: RADIUS.lg, padding: SPACING.lg, ...SHADOWS.md },
+  // Estatísticas Mockup
+  statsMockup: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.gray500,
+    marginTop: SPACING.md,
+    textAlign: 'center',
+  },
 
   // Bio
-  bioText: { fontSize: FONTS.sizes.md, color: COLORS.gray600, lineHeight: 22 },
+  bioContainer: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+  },
+  bioText: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.gray700,
+    lineHeight: 22,
+    textAlign: 'left',
+  },
+
+  // Ações Row
+  acoesRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.md,
+    marginHorizontal: SPACING.lg,
+  },
+  btnSeguir: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnSeguirText: {
+    color: COLORS.white,
+    fontSize: FONTS.sizes.md,
+    fontWeight: 'bold',
+  },
+  btnMensagem: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnMensagemText: {
+    color: COLORS.primary,
+    fontSize: FONTS.sizes.md,
+    fontWeight: 'bold',
+  },
+
+  // Cartão Minha Vibe
+  vibeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    ...SHADOWS.md,
+    shadowOpacity: 0.05,
+    elevation: 2,
+  },
+  vibeCardTitle: {
+    fontSize: FONTS.sizes.md,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+    marginBottom: SPACING.sm,
+  },
+  vibeCardContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vibeCardIcone: {
+    fontSize: 48,
+    marginBottom: SPACING.xs,
+  },
+  vibeCardLabel: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: '700',
+    color: COLORS.gray700,
+    textAlign: 'center',
+  },
+
+  // Interesses
+  interessesSection: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+  },
+  interessesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  interessePill: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray200,
+    backgroundColor: 'transparent',
+  },
+  interessePillText: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '600',
+    color: COLORS.gray600,
+  },
+
+  // Seções
+  section: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.xl,
+  },
+  sectionTitle: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: 'bold',
+    color: COLORS.gray800,
+    marginBottom: SPACING.sm,
+  },
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    ...SHADOWS.md,
+  },
 
   // Conquistas
-  conquistasGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  conquistaBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: RADIUS.full, gap: 4 },
-  conquistaAtiva: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#86EFAC' },
-  conquistaInativa: { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', opacity: 0.6 },
+  conquistasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  conquistaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.full,
+    gap: 4,
+  },
+  conquistaAtiva: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  conquistaInativa: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    opacity: 0.6,
+  },
   conquistaIcone: { fontSize: 14 },
   conquistaLabel: { fontSize: FONTS.sizes.xs, fontWeight: '600' },
   conquistaLabelAtiva: { color: '#166534' },
@@ -578,31 +822,98 @@ const styles = StyleSheet.create({
 
   // Células
   celulasList: { gap: SPACING.sm },
-  celulaCard: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: '#FFF', borderRadius: RADIUS.md, padding: SPACING.md, ...SHADOWS.sm },
+  celulaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: '#FFF',
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    ...SHADOWS.sm,
+  },
   celulaNome: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.gray700 },
 
   // Itens (pedidos/testemunhos)
-  itemCard: { backgroundColor: '#FFF', borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
-  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.xs },
-  itemCategoria: { fontSize: FONTS.sizes.xs, color: COLORS.primary, fontWeight: '600', backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  itemCard: {
+    backgroundColor: '#FFF',
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  itemCategoria: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.primary,
+    fontWeight: '600',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
   itemGlorias: { fontSize: FONTS.sizes.xs, color: '#B45309', fontWeight: '600' },
   itemData: { fontSize: FONTS.sizes.xs, color: COLORS.gray400 },
   itemTexto: { fontSize: FONTS.sizes.sm, color: COLORS.gray600, lineHeight: 20 },
 
   // Estatísticas
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  statBox: { flex: 1, minWidth: '45%', backgroundColor: '#FFF', borderRadius: RADIUS.lg, padding: SPACING.lg, alignItems: 'center', ...SHADOWS.md },
-  statNumero: { fontSize: FONTS.sizes.xxxl, fontWeight: 'bold', color: COLORS.primary },
-  statLabel: { fontSize: FONTS.sizes.xs, color: COLORS.gray500, marginTop: 4 },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  statBox: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#FFF',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    ...SHADOWS.md,
+  },
+  statNumero: {
+    fontSize: FONTS.sizes.xxxl,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  statLabel: {
+    fontSize: FONTS.sizes.xs,
+    color: COLORS.gray500,
+    marginTop: 4,
+  },
 
   // Endossos
   endossoNumero: { fontSize: 40, fontWeight: 'bold', color: COLORS.primary },
   endossoLabel: { fontSize: FONTS.sizes.sm, color: COLORS.gray500, marginTop: SPACING.xs },
-  progressBar: { height: 8, backgroundColor: COLORS.gray200, borderRadius: RADIUS.full, overflow: 'hidden', marginBottom: SPACING.xs },
+  progressBar: {
+    height: 8,
+    backgroundColor: COLORS.gray200,
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
+    marginBottom: SPACING.xs,
+  },
   progressFill: { height: '100%', borderRadius: RADIUS.full },
   progressLabel: { fontSize: FONTS.sizes.xs, color: COLORS.gray500, textAlign: 'center', marginBottom: SPACING.md },
-  endossarBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, borderRadius: RADIUS.full, paddingVertical: 14, ...SHADOWS.sm },
+  endossarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.full,
+    paddingVertical: 14,
+    ...SHADOWS.sm,
+  },
   endossarBtnRemover: { backgroundColor: COLORS.danger },
   endossarBtnText: { color: '#FFF', fontSize: FONTS.sizes.md, fontWeight: 'bold' },
-  loginCard: { backgroundColor: COLORS.gray50, borderRadius: RADIUS.md, padding: SPACING.md, alignItems: 'center', borderWidth: 1, borderColor: COLORS.gray200 },
+  loginCard: {
+    backgroundColor: COLORS.gray50,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
 });

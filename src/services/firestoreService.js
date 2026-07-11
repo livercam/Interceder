@@ -85,6 +85,9 @@ export const createUserProfile = async (uid, userData) => {
     },
     is_admin: false,
     push_notificacoes_activas: true,
+    biografia: '',
+    vibe_atual: '',
+    interesses: [],
     createdAt: serverTimestamp(),
   });
 };
