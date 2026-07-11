@@ -421,6 +421,34 @@ export const excluirMensagemChat = async (chatId, mensagemId) => {
   await batch.commit();
 };
 
+/**
+ * Escuta os chats do utilizador em tempo real.
+ * Filtra por participantes array-contains e ordena por timestamp_atualizacao.
+ *
+ * @param {string} meuUid - UID do utilizador atual
+ * @param {function} callback - Função chamada com a lista de chats
+ * @returns {function} - Função para cancelar a inscrição (unsubscribe)
+ */
+export const ouvirMeusChats = (meuUid, callback) => {
+  const q = query(
+    collection(db, COLLECTIONS.CHATS),
+    where('participantes', 'array-contains', meuUid),
+    orderBy('timestamp_atualizacao', 'desc'),
+    limit(50)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const chats = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    callback(chats);
+  }, (error) => {
+    console.warn('[ouvirMeusChats] Erro:', error.message);
+    callback([]);
+  });
+};
+
 // ============================================================
 // PEDIDOS DE ORAÇÃO
 // ============================================================

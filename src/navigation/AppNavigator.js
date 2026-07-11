@@ -35,6 +35,7 @@ import NovaMensagemApoioScreen from '../screens/NovaMensagemApoioScreen';
 import GerenciarSolicitacoesScreen from '../screens/GerenciarSolicitacoesScreen';
 import EditarCelulaScreen from '../screens/EditarCelulaScreen';
 import Chat1x1Screen from '../screens/Chat1x1Screen';
+import CaixaMensagensScreen from '../screens/CaixaMensagensScreen';
 import SuporteScreen from '../screens/SuporteScreen';
 import WebViewScreen from '../screens/WebViewScreen';
 import CustomSplashScreen from '../components/CustomSplashScreen';
@@ -44,6 +45,7 @@ import CriarTestemunhoScreen from '../screens/CriarTestemunhoScreen';
 import CriarCelulaScreen from '../screens/CriarCelulaScreen';
 
 import { Ionicons } from '@expo/vector-icons';
+import MessageIcon from '../components/MessageIcon';
 import NotificationIcon from '../components/NotificationIcon';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -114,7 +116,12 @@ function MainTabs() {
           title: 'Mural',
           headerTitle: 'Mural de Oração',
           headerLeft: () => <HeaderLogo />,
-          headerRight: () => <NotificationIcon />,
+          headerRight: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MessageIcon />
+              <NotificationIcon />
+            </View>
+          ),
         }}
       />
       <Tab.Screen
@@ -513,6 +520,17 @@ export default function AppNavigator() {
               }}
             />
             
+            <Stack.Screen
+              name="CaixaMensagens"
+              component={CaixaMensagensScreen}
+              options={{
+                headerShown: true,
+                headerTitle: '💬 Mensagens',
+                headerStyle: styles.header,
+                headerTitleStyle: styles.headerTitle,
+                headerTintColor: COLORS.white,
+              }}
+            />
             <Stack.Screen
               name="Chat1x1"
               component={Chat1x1Screen}
