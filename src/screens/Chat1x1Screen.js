@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,7 +46,7 @@ export default function Chat1x1Screen({ route }) {
   const [mensagemEmEdicao, setMensagemEmEdicao] = useState(null);
   const [mensagemEmResposta, setMensagemEmResposta] = useState(null);
   const [mostrarMidia, setMostrarMidia] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [midiaPreview, setMidiaPreview] = useState(null); // { uri, tipo: 'imagem' | 'audio' }
 
   // Escuta mensagens em tempo real e marca como lidas ao abrir
   useEffect(() => {
@@ -73,7 +74,7 @@ export default function Chat1x1Screen({ route }) {
     setMensagemEmResposta(null);
   }, []);
 
-  // Upload de imagem e envio
+  // ===== FLUXO DE IMAGEM =====
   const handleAdicionarImagem = useCallback(async () => {
     showAlert({
       title: 'Adicionar imagem',
@@ -88,7 +89,10 @@ export default function Chat1x1Screen({ route }) {
               return;
             }
             const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
-            if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+            if (!r.canceled && r.assets?.[0]?.uri) {
+              setMidiaPreview({ uri: r.assets[0].uri, tipo: 'imagem' });
+              setMostrarMidia(false);
+            }
           },
         },
         {
@@ -101,7 +105,10 @@ export default function Chat1x1Screen({ route }) {
               return;
             }
             const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
-            if (!r.canceled && r.assets?.[0]?.uri) uploadEEnviarImagem(r.assets[0].uri);
+            if (!r.canceled && r.assets?.[0]?.uri) {
+              setMidiaPreview({ uri: r.assets[0].uri, tipo: 'imagem' });
+              setMostrarMidia(false);
+            }
           },
         },
         { text: 'Cancelar', type: 'cancel' },
@@ -109,34 +116,39 @@ export default function Chat1x1Screen({ route }) {
     });
   }, []);
 
-  const uploadEEnviarImagem = async (uri) => {
-    setUploading(true);
+  // ===== FLUXO DE ÁUDIO (só preview, sem envio automático) =====
+  const handleAudioPronto = useCallback((dados) => {
+    setMidiaPreview({ uri: dados.uri, tipo: 'audio' });
+    setMostrarMidia(false);
+  }, []);
+
+  // ===== ENVIO DA MÍDIA (disparado manualmente pelo botão) =====
+  const enviarMidiaPreview = useCallback(async () => {
+    if (!midiaPreview || enviando) return;
+
+    setEnviando(true);
     try {
       const token = await currentUser.getIdToken();
-      const nome = `img_${Date.now()}.jpg`;
-      const urlUp = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=chat_imagens%2F${chatId}%2F${nome}`;
-      await uploadAsync(urlUp, uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' } });
-      const urlF = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/chat_imagens%2F${chatId}%2F${nome}?alt=media`;
-      await enviarMensagemChat(chatId, '', currentUser.uid, null, urlF, null);
-      setMostrarMidia(false);
+
+      if (midiaPreview.tipo === 'imagem') {
+        const nome = `img_${Date.now()}.jpg`;
+        const urlUp = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o?name=chat_imagens%2F${chatId}%2F${nome}`;
+        await uploadAsync(urlUp, midiaPreview.uri, { httpMethod: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' } });
+        const urlF = `https://firebasestorage.googleapis.com/v0/b/interceder-ef0cd.firebasestorage.app/o/chat_imagens%2F${chatId}%2F${nome}?alt=media`;
+        await enviarMensagemChat(chatId, '', currentUser.uid, null, urlF, null);
+      } else if (midiaPreview.tipo === 'audio') {
+        await enviarMensagemChat(chatId, '', currentUser.uid, null, null, midiaPreview.uri);
+      }
+
+      setMidiaPreview(null);
     } catch (error) {
-      showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar imagem.', buttons: [{ text: 'OK', type: 'default' }] });
+      showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar mídia.', buttons: [{ text: 'OK', type: 'default' }] });
     } finally {
-      setUploading(false);
+      setEnviando(false);
     }
-  };
+  }, [midiaPreview, chatId, currentUser, enviando, showAlert]);
 
-  // Callback do GravadorAudio
-  const handleAudioPronto = useCallback(async (dados) => {
-    try {
-      await enviarMensagemChat(chatId, '', currentUser.uid, null, null, dados.uri);
-      setMostrarMidia(false);
-    } catch (error) {
-      showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar áudio.', buttons: [{ text: 'OK', type: 'default' }] });
-    }
-  }, [chatId, currentUser]);
-
-  // Long Press no balao
+  // ===== LONG PRESS =====
   const handleLongPress = useCallback((item) => {
     const ehMinha = item.autor_id === currentUser?.uid;
 
@@ -204,7 +216,7 @@ export default function Chat1x1Screen({ route }) {
     showAlert({ title: 'Opções da Mensagem', buttons: opcoes });
   }, [currentUser, chatId, contatoNome, showAlert]);
 
-  // Envia mensagem de texto
+  // ===== ENVIO TEXTO =====
   const handleEnviar = useCallback(async () => {
     const textoTrim = texto.trim();
     if (!textoTrim || enviando) return;
@@ -226,7 +238,7 @@ export default function Chat1x1Screen({ route }) {
     }
   }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, mensagemEmResposta, cancelarEdicao, showAlert]);
 
-  // Renderiza cada mensagem
+  // ===== RENDER MENSAGEM =====
   const renderMensagem = useCallback(({ item }) => {
     const ehMinha = item.autor_id === currentUser?.uid;
     const foiEditada = !!item.editadoEm;
@@ -255,7 +267,11 @@ export default function Chat1x1Screen({ route }) {
               </View>
             </View>
           )}
-          {temImagem && <FeedImagem imagemUrl={item.imagem_url} />}
+          {temImagem && (
+            <View style={styles.imagemBalaoContainer}>
+              <FeedImagem imagemUrl={item.imagem_url} />
+            </View>
+          )}
           {temAudio && <FeedAudio audioUrl={item.audio_url} />}
           {item.texto ? (
             <Text style={[styles.balaoTexto, { color: ehMinha ? COLORS.white : COLORS.gray800 }]}>
@@ -274,13 +290,16 @@ export default function Chat1x1Screen({ route }) {
 
   const keyExtractor = useCallback((item) => item.id, []);
 
+  // Decide o que mostrar no rodapé
+  const temPreviewMidia = midiaPreview !== null && !enviando;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
     >
-      {uploading && (
+      {enviando && (
         <View style={styles.uploadingBar}>
           <ActivityIndicator size="small" color={COLORS.white} />
           <Text style={styles.uploadingText}>Enviando mídia...</Text>
@@ -328,7 +347,7 @@ export default function Chat1x1Screen({ route }) {
           </View>
         )}
 
-        {mostrarMidia && !uploading && (
+        {mostrarMidia && !midiaPreview && !enviando && (
           <View style={styles.midiaContainer}>
             <GravadorAudio onAudioReady={handleAudioPronto} onRemove={() => setMostrarMidia(false)} />
             <TouchableOpacity style={styles.btnAnexarImagem} onPress={handleAdicionarImagem} activeOpacity={0.7}>
@@ -338,34 +357,63 @@ export default function Chat1x1Screen({ route }) {
           </View>
         )}
 
-        <View style={styles.inputRow}>
-          <TouchableOpacity style={styles.btnAnexo} onPress={() => setMostrarMidia(!mostrarMidia)} activeOpacity={0.7}>
-            <Ionicons name={mostrarMidia ? 'close' : 'add-circle-outline'} size={24} color={COLORS.gray500} />
-          </TouchableOpacity>
-          <TextInput
-            ref={inputRef}
-            style={styles.input}
-            value={texto}
-            onChangeText={setTexto}
-            placeholder="Digite sua mensagem..."
-            placeholderTextColor={COLORS.gray400}
-            multiline
-            maxLength={500}
-            textAlignVertical="center"
-          />
-          <TouchableOpacity
-            style={[styles.btnEnviar, (!texto.trim() || enviando) && styles.btnEnviarDisabled]}
-            onPress={handleEnviar}
-            disabled={!texto.trim() || enviando}
-            activeOpacity={0.7}
-          >
-            {enviando ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <Ionicons name={mensagemEmEdicao ? 'checkmark' : 'send'} size={20} color={COLORS.white} />
+        {temPreviewMidia && (
+          <View style={styles.previewMidiaContainer}>
+            {/* Thumbnail da imagem */}
+            {midiaPreview.tipo === 'imagem' && (
+              <View style={styles.previewImagemWrapper}>
+                <Image source={{ uri: midiaPreview.uri }} style={styles.previewImagem} resizeMode="cover" />
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
+            {midiaPreview.tipo === 'audio' && (
+              <View style={styles.previewAudioWrapper}>
+                <Ionicons name="musical-note" size={24} color={COLORS.primary} />
+                <Text style={styles.previewAudioTexto}>Áudio gravado</Text>
+              </View>
+            )}
+            {/* Botões de ação */}
+            <View style={styles.previewAcoes}>
+              <TouchableOpacity style={styles.previewBtnDescartar} onPress={() => setMidiaPreview(null)} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={32} color={COLORS.danger} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.previewBtnEnviar} onPress={enviarMidiaPreview} activeOpacity={0.7}>
+                <Ionicons name="send" size={22} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Input de texto (só aparece se não tiver preview de mídia) */}
+        {!temPreviewMidia && (
+          <View style={styles.inputRow}>
+            <TouchableOpacity style={styles.btnAnexo} onPress={() => setMostrarMidia(!mostrarMidia)} activeOpacity={0.7}>
+              <Ionicons name={mostrarMidia ? 'close' : 'add-circle-outline'} size={24} color={COLORS.gray500} />
+            </TouchableOpacity>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              value={texto}
+              onChangeText={setTexto}
+              placeholder="Digite sua mensagem..."
+              placeholderTextColor={COLORS.gray400}
+              multiline
+              maxLength={500}
+              textAlignVertical="center"
+            />
+            <TouchableOpacity
+              style={[styles.btnEnviar, (!texto.trim() || enviando) && styles.btnEnviarDisabled]}
+              onPress={handleEnviar}
+              disabled={!texto.trim() || enviando}
+              activeOpacity={0.7}
+            >
+              {enviando ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Ionicons name={mensagemEmEdicao ? 'checkmark' : 'send'} size={20} color={COLORS.white} />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -375,6 +423,7 @@ const styles = StyleSheet.create({
   listaContent: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
   uploadingBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, paddingVertical: SPACING.xs, gap: SPACING.sm },
   uploadingText: { color: COLORS.white, fontSize: FONTS.sizes.sm, fontWeight: '600' },
+
   balaoContainer: { marginBottom: SPACING.xs, maxWidth: '80%' },
   balaoMinha: { alignSelf: 'flex-end' },
   balaoOutro: { alignSelf: 'flex-start' },
@@ -383,25 +432,94 @@ const styles = StyleSheet.create({
   balaoOutroFundo: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
   balaoTexto: { fontSize: FONTS.sizes.md, lineHeight: 20 },
   editadoTag: { fontSize: FONTS.sizes.xs, fontStyle: 'italic', marginTop: 2 },
+
+  // Container forçado para imagem no balão
+  imagemBalaoContainer: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: SPACING.xs,
+  },
+
   replyContainer: { flexDirection: 'row', marginBottom: SPACING.xs, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: SPACING.xs, overflow: 'hidden' },
   replyBar: { width: 4, borderRadius: 2, backgroundColor: COLORS.primary, marginRight: SPACING.sm },
   replyContent: { flex: 1 },
   replyAutor: { fontSize: FONTS.sizes.xs, fontWeight: 'bold', marginBottom: 1 },
   replyTexto: { fontSize: FONTS.sizes.xs, fontStyle: 'italic' },
+
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
   emptyText: { fontSize: FONTS.sizes.md, fontWeight: '600', color: COLORS.gray400, marginTop: SPACING.md },
   emptySubtext: { fontSize: FONTS.sizes.sm, color: COLORS.gray300, marginTop: SPACING.xs, textAlign: 'center' },
+
   inputArea: { backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray200 },
+
   previewResposta: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, backgroundColor: COLORS.gray50, borderLeftWidth: 4, borderLeftColor: COLORS.primary, borderTopLeftRadius: RADIUS.md, borderTopRightRadius: RADIUS.md },
   previewRespostaBar: { display: 'none' },
   previewRespostaContent: { flex: 1, marginRight: SPACING.sm },
   previewRespostaLabel: { fontSize: FONTS.sizes.xs, fontWeight: 'bold', color: COLORS.primary },
   previewRespostaTexto: { fontSize: FONTS.sizes.xs, color: COLORS.gray500, fontStyle: 'italic', marginTop: 1 },
+
   editandoBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, backgroundColor: COLORS.primary + '08', gap: SPACING.sm },
   editandoTexto: { flex: 1, fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '600' },
+
   midiaContainer: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.sm },
   btnAnexarImagem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '08', borderRadius: RADIUS.full, paddingVertical: SPACING.sm, gap: SPACING.sm, borderWidth: 1.5, borderColor: COLORS.primary + '30' },
   btnAnexarTexto: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.primary },
+
+  // Preview de mídia (antes do envio)
+  previewMidiaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  previewImagemWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  previewImagem: {
+    width: '100%',
+    height: '100%',
+  },
+  previewAudioWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: SPACING.sm,
+    backgroundColor: COLORS.gray50,
+    borderRadius: RADIUS.full,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  previewAudioTexto: {
+    fontSize: FONTS.sizes.sm,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  previewAcoes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  previewBtnDescartar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBtnEnviar: {
+    backgroundColor: COLORS.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   inputRow: { flexDirection: 'row', padding: SPACING.sm, alignItems: 'flex-end' },
   btnAnexo: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.xs },
   input: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: Platform.OS === 'ios' ? 10 : 8, fontSize: FONTS.sizes.md, color: COLORS.gray800, maxHeight: 100, marginRight: SPACING.sm },
