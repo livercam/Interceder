@@ -1,6 +1,5 @@
-// Tela de Chat 1x1 - Mensagens Diretas Nativas
-// Sem bibliotecas externas: FlatList, KeyboardAvoidingView, onSnapshot
-// Funcionalidades: enviar, editar, excluir, responder, fotos, áudios
+// Tela de Chat 1x1 - Mensagens Diretas Nativas v2.0
+// Design premium: waveform, status de leitura, bordas sutis
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -38,6 +37,12 @@ const fmt = (s) => {
   return `${m}:${seg}`;
 };
 
+const STATUS_LABELS = {
+  enviado: 'Enviado',
+  recebido: 'Recebido',
+  visualizado: 'Visualizado',
+};
+
 export default function Chat1x1Screen({ route }) {
   const { chatId, contatoNome } = route.params;
   const { user: currentUser } = useAuth();
@@ -50,19 +55,14 @@ export default function Chat1x1Screen({ route }) {
   const [enviando, setEnviando] = useState(false);
   const [mensagemEmEdicao, setMensagemEmEdicao] = useState(null);
   const [mensagemEmResposta, setMensagemEmResposta] = useState(null);
-  const [midiaPreview, setMidiaPreview] = useState(null); // { uri, tipo: 'imagem' | 'audio' }
-
-  // Estados de gravação inline
+  const [midiaPreview, setMidiaPreview] = useState(null);
   const [gravando, setGravando] = useState(false);
   const [tempoGravacao, setTempoGravacao] = useState(0);
   const gravadorRef = useRef(null);
   const timerGravRef = useRef(null);
-
-  // Player de pré-ouvidir áudio
   const [tocandoPreview, setTocandoPreview] = useState(false);
   const somPreviewRef = useRef(null);
 
-  // Escuta mensagens em tempo real e marca como lidas ao abrir
   useEffect(() => {
     const unsubscribe = ouvirMensagensChat(chatId, (msgs) => {
       setMensagens(msgs);
@@ -75,7 +75,6 @@ export default function Chat1x1Screen({ route }) {
     };
   }, [chatId, currentUser]);
 
-  // Cleanup ao desmontar
   useEffect(() => {
     return () => {
       if (timerGravRef.current) clearInterval(timerGravRef.current);
@@ -102,14 +101,10 @@ export default function Chat1x1Screen({ route }) {
     setMidiaPreview(null);
   }, []);
 
-  // ===== GRAVAÇÃO DE ÁUDIO INLINE =====
   const iniciarGravacao = useCallback(async () => {
     try {
       const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) {
-        showAlert({ title: 'Permissão', message: 'Precisamos de acesso ao microfone.', buttons: [{ text: 'OK', type: 'default' }] });
-        return;
-      }
+      if (!granted) { showAlert({ title: 'Permissão', message: 'Precisamos de acesso ao microfone.', buttons: [{ text: 'OK', type: 'default' }] }); return; }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       const cfg = { extension: '.m4a', sampleRate: 16000, numberOfChannels: 1, bitRate: 24000, android: { outputFormat: 'mpeg4', audioEncoder: 'aac' }, ios: { outputFormat: '1', audioQuality: 0, linearPCMBitDepth: 16, linearPCMIsBigEndian: false, linearPCMIsFloat: false } };
       const r = new AudioModule.AudioRecorder(cfg);
@@ -120,10 +115,7 @@ export default function Chat1x1Screen({ route }) {
       setGravando(true);
       setTempoGravacao(0);
       timerGravRef.current = setInterval(() => setTempoGravacao((p) => p + 1), 1000);
-    } catch (e) {
-      console.warn('[Gravacao]', e.message);
-      gravadorRef.current = null;
-    }
+    } catch (e) { console.warn('[Gravacao]', e.message); gravadorRef.current = null; }
   }, []);
 
   const pararGravacao = useCallback(async () => {
@@ -139,7 +131,6 @@ export default function Chat1x1Screen({ route }) {
     setMidiaPreview({ uri, tipo: 'audio', duracao: tempoGravacao });
   }, [tempoGravacao]);
 
-  // ===== PRÉ-OUVIR ÁUDIO (expo-audio AudioModule) =====
   const togglePreOuvir = useCallback(async () => {
     if (!midiaPreview || midiaPreview.tipo !== 'audio') return;
     if (tocandoPreview && somPreviewRef.current) {
@@ -149,10 +140,7 @@ export default function Chat1x1Screen({ route }) {
     }
     try {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-      if (somPreviewRef.current) {
-        try { somPreviewRef.current.remove(); } catch (e) {}
-        somPreviewRef.current = null;
-      }
+      if (somPreviewRef.current) { try { somPreviewRef.current.remove(); } catch (e) {} somPreviewRef.current = null; }
       const player = new AudioModule.AudioPlayer({ uri: midiaPreview.uri }, 500, false, 0);
       player.addListener('playingStatusDidChange', (status) => {
         if (status === 'finished') {
@@ -164,41 +152,31 @@ export default function Chat1x1Screen({ route }) {
       somPreviewRef.current = player;
       await player.play();
       setTocandoPreview(true);
-    } catch (e) {
-      console.warn('[PreOuvir]', e.message);
-    }
+    } catch (e) { console.warn('[PreOuvir]', e.message); }
   }, [midiaPreview, tocandoPreview]);
 
-  // ===== FLUXO DE IMAGEM =====
   const handleAdicionarImagem = useCallback(async () => {
     limparPreview();
     showAlert({
       title: 'Adicionar imagem',
       buttons: [
-        {
-          text: '📷 Câmera', type: 'default',
-          onPress: async () => {
-            const p = await ImagePicker.requestCameraPermissionsAsync();
-            if (!p.granted) { showAlert({ title: 'Permissão', message: 'Precisamos da câmera.', buttons: [{ text: 'OK', type: 'default' }] }); return; }
-            const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
-            if (!r.canceled && r.assets?.[0]?.uri) setMidiaPreview({ uri: r.assets[0].uri, tipo: 'imagem' });
-          },
-        },
-        {
-          text: '🖼️ Galeria', type: 'default',
-          onPress: async () => {
-            const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!p.granted) { showAlert({ title: 'Permissão', message: 'Precisamos da galeria.', buttons: [{ text: 'OK', type: 'default' }] }); return; }
-            const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
-            if (!r.canceled && r.assets?.[0]?.uri) setMidiaPreview({ uri: r.assets[0].uri, tipo: 'imagem' });
-          },
-        },
+        { text: '📷 Câmera', type: 'default', onPress: async () => {
+          const p = await ImagePicker.requestCameraPermissionsAsync();
+          if (!p.granted) { showAlert({ title: 'Permissão', message: 'Precisamos da câmera.', buttons: [{ text: 'OK', type: 'default' }] }); return; }
+          const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+          if (!r.canceled && r.assets?.[0]?.uri) setMidiaPreview({ uri: r.assets[0].uri, tipo: 'imagem' });
+        }},
+        { text: '🖼️ Galeria', type: 'default', onPress: async () => {
+          const p = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!p.granted) { showAlert({ title: 'Permissão', message: 'Precisamos da galeria.', buttons: [{ text: 'OK', type: 'default' }] }); return; }
+          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+          if (!r.canceled && r.assets?.[0]?.uri) setMidiaPreview({ uri: r.assets[0].uri, tipo: 'imagem' });
+        }},
         { text: 'Cancelar', type: 'cancel' },
       ],
     });
   }, [limparPreview]);
 
-  // ===== ENVIO DA MÍDIA =====
   const enviarMidiaPreview = useCallback(async () => {
     if (!midiaPreview || enviando) return;
     limparPreview();
@@ -216,12 +194,9 @@ export default function Chat1x1Screen({ route }) {
       }
     } catch (error) {
       showAlert({ title: 'Erro', message: error.message || 'Falha ao enviar mídia.', buttons: [{ text: 'OK', type: 'default' }] });
-    } finally {
-      setEnviando(false);
-    }
+    } finally { setEnviando(false); }
   }, [midiaPreview, chatId, currentUser, enviando, limparPreview, showAlert]);
 
-  // ===== LONG PRESS =====
   const handleLongPress = useCallback((item) => {
     const ehMinha = item.autor_id === currentUser?.uid;
     if (item.imagem_url || item.audio_url) {
@@ -247,7 +222,6 @@ export default function Chat1x1Screen({ route }) {
     showAlert({ title: 'Opções da Mensagem', buttons: opcoes });
   }, [currentUser, chatId, contatoNome, showAlert]);
 
-  // ===== ENVIO TEXTO =====
   const handleEnviar = useCallback(async () => {
     const textoTrim = texto.trim();
     if (!textoTrim || enviando) return;
@@ -263,18 +237,16 @@ export default function Chat1x1Screen({ route }) {
       }
     } catch (error) {
       showAlert({ title: 'Erro', message: error.message || 'Não foi possível enviar.', buttons: [{ text: 'OK', type: 'default' }] });
-    } finally {
-      setEnviando(false);
-    }
+    } finally { setEnviando(false); }
   }, [texto, chatId, currentUser, enviando, mensagemEmEdicao, mensagemEmResposta, cancelarEdicao, showAlert]);
 
-  // ===== RENDER MENSAGEM =====
   const renderMensagem = useCallback(({ item }) => {
     const ehMinha = item.autor_id === currentUser?.uid;
     const foiEditada = !!item.editadoEm;
     const temReply = !!item.reply_to;
     const temImagem = !!item.imagem_url;
     const temAudio = !!item.audio_url;
+    const statusMsg = item.status || 'enviado';
     return (
       <TouchableOpacity activeOpacity={0.7} onLongPress={() => handleLongPress(item)} delayLongPress={400}
         style={[styles.balaoContainer, ehMinha ? styles.balaoMinha : styles.balaoOutro]}>
@@ -299,7 +271,10 @@ export default function Chat1x1Screen({ route }) {
             </View>
           )}
           {item.texto ? <Text style={[styles.balaoTexto, { color: ehMinha ? COLORS.white : COLORS.gray800 }]}>{item.texto}</Text> : null}
-          {foiEditada && <Text style={[styles.editadoTag, { color: ehMinha ? 'rgba(255,255,255,0.7)' : COLORS.gray400 }]}>(editado)</Text>}
+          <View style={styles.statusRow}>
+            {foiEditada && <Text style={[styles.editadoTag, { color: ehMinha ? 'rgba(255,255,255,0.7)' : COLORS.gray400 }]}>editado</Text>}
+            {ehMinha && <Text style={[styles.statusTexto, { color: ehMinha ? 'rgba(255,255,255,0.6)' : COLORS.gray400 }]}>{STATUS_LABELS[statusMsg] || 'Enviado'}</Text>}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -316,7 +291,6 @@ export default function Chat1x1Screen({ route }) {
           <Text style={styles.uploadingText}>Enviando mídia...</Text>
         </View>
       )}
-
       <FlatList data={mensagens} keyExtractor={keyExtractor} renderItem={renderMensagem} inverted={true}
         contentContainerStyle={styles.listaContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
@@ -327,7 +301,6 @@ export default function Chat1x1Screen({ route }) {
           </View>
         }
       />
-
       <View style={[styles.inputArea, { paddingBottom: Math.max(SPACING.sm, insets.bottom) }]}>
         {mensagemEmResposta && (
           <View style={styles.previewResposta}>
@@ -339,7 +312,6 @@ export default function Chat1x1Screen({ route }) {
             <TouchableOpacity onPress={cancelarResposta}><Ionicons name="close-circle" size={20} color={COLORS.gray500} /></TouchableOpacity>
           </View>
         )}
-
         {mensagemEmEdicao && (
           <View style={styles.editandoBar}>
             <Ionicons name="create-outline" size={16} color={COLORS.primary} />
@@ -347,14 +319,10 @@ export default function Chat1x1Screen({ route }) {
             <TouchableOpacity onPress={cancelarEdicao}><Ionicons name="close-circle" size={20} color={COLORS.gray500} /></TouchableOpacity>
           </View>
         )}
-
-        {/* Preview de mídia com pré-ouvidir */}
         {temPreviewMidia && (
           <View style={styles.previewMidiaContainer}>
             {midiaPreview.tipo === 'imagem' && (
-              <View style={styles.previewImagemWrapper}>
-                <Image source={{ uri: midiaPreview.uri }} style={styles.previewImagem} resizeMode="cover" />
-              </View>
+              <View style={styles.previewImagemWrapper}><Image source={{ uri: midiaPreview.uri }} style={styles.previewImagem} resizeMode="cover" /></View>
             )}
             {midiaPreview.tipo === 'audio' && (
               <TouchableOpacity style={styles.previewAudioPlayer} onPress={togglePreOuvir} activeOpacity={0.7}>
@@ -368,11 +336,8 @@ export default function Chat1x1Screen({ route }) {
             </View>
           </View>
         )}
-
-        {/* Input de texto — só aparece se não tiver preview */}
         {!temPreviewMidia && (
           <View style={styles.inputRow}>
-            {/* Indicador de gravação */}
             {gravando ? (
               <View style={styles.gravandoRow}>
                 <View style={styles.gravDot} />
@@ -393,8 +358,7 @@ export default function Chat1x1Screen({ route }) {
             )}
             <TextInput ref={inputRef} style={[styles.input, gravando && { opacity: 0.3 }]} value={texto} onChangeText={setTexto}
               placeholder={gravando ? 'Gravando áudio...' : 'Digite sua mensagem...'} placeholderTextColor={COLORS.gray400}
-              multiline maxLength={500} textAlignVertical="center" editable={!gravando}
-            />
+              multiline maxLength={500} textAlignVertical="center" editable={!gravando} />
             <TouchableOpacity style={[styles.btnEnviar, (!texto.trim() || enviando) && styles.btnEnviarDisabled]}
               onPress={handleEnviar} disabled={!texto.trim() || enviando} activeOpacity={0.7}>
               {enviando ? <ActivityIndicator size="small" color={COLORS.white} /> : <Ionicons name={mensagemEmEdicao ? 'checkmark' : 'send'} size={20} color={COLORS.white} />}
@@ -410,7 +374,6 @@ const styles = StyleSheet.create({
   listaContent: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
   uploadingBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary, paddingVertical: SPACING.xs, gap: SPACING.sm },
   uploadingText: { color: COLORS.white, fontSize: FONTS.sizes.sm, fontWeight: '600' },
-
   balaoContainer: { marginBottom: SPACING.xs, maxWidth: '80%' },
   balaoMinha: { alignSelf: 'flex-end' },
   balaoOutro: { alignSelf: 'flex-start' },
@@ -418,10 +381,27 @@ const styles = StyleSheet.create({
   balaoMinhaFundo: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
   balaoOutroFundo: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4 },
   balaoTexto: { fontSize: FONTS.sizes.md, lineHeight: 20 },
-  editadoTag: { fontSize: FONTS.sizes.xs, fontStyle: 'italic', marginTop: 2 },
-  imagemBalaoContainer: { width: 200, height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: SPACING.xs },
+
+  // Imagem com borda sutil
+  imagemBalaoContainer: {
+    width: 200, height: 200,
+    borderRadius: 16, overflow: 'hidden',
+    marginBottom: SPACING.xs,
+    borderWidth: 0.5, borderColor: COLORS.gray200,
+  },
   imagemBalao: { width: '100%', height: '100%' },
   audioBalaoContainer: { backgroundColor: 'transparent', padding: 0, marginBottom: SPACING.xs },
+
+  // Status de leitura e editado na mesma row
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: SPACING.sm,
+    marginTop: 2,
+  },
+  editadoTag: { fontSize: 10, fontStyle: 'italic' },
+  statusTexto: { fontSize: 10, fontWeight: '500' },
 
   replyContainer: { flexDirection: 'row', marginBottom: SPACING.xs, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: SPACING.xs, overflow: 'hidden' },
   replyBar: { width: 4, borderRadius: 2, backgroundColor: COLORS.primary, marginRight: SPACING.sm },
@@ -431,19 +411,14 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
   emptyText: { fontSize: FONTS.sizes.md, fontWeight: '600', color: COLORS.gray400, marginTop: SPACING.md },
   emptySubtext: { fontSize: FONTS.sizes.sm, color: COLORS.gray300, marginTop: SPACING.xs, textAlign: 'center' },
-
   inputArea: { backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray200 },
-
   previewResposta: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, backgroundColor: COLORS.gray50, borderLeftWidth: 4, borderLeftColor: COLORS.primary },
   previewRespostaBar: { display: 'none' },
   previewRespostaContent: { flex: 1, marginRight: SPACING.sm },
   previewRespostaLabel: { fontSize: FONTS.sizes.xs, fontWeight: 'bold', color: COLORS.primary },
   previewRespostaTexto: { fontSize: FONTS.sizes.xs, color: COLORS.gray500, fontStyle: 'italic', marginTop: 1 },
-
   editandoBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, backgroundColor: COLORS.primary + '08', gap: SPACING.sm },
   editandoTexto: { flex: 1, fontSize: FONTS.sizes.sm, color: COLORS.primary, fontWeight: '600' },
-
-  // Preview mídia
   previewMidiaContainer: { flexDirection: 'row', alignItems: 'center', padding: SPACING.sm, gap: SPACING.sm },
   previewImagemWrapper: { width: 60, height: 60, borderRadius: 12, overflow: 'hidden' },
   previewImagem: { width: '100%', height: '100%' },
@@ -451,8 +426,6 @@ const styles = StyleSheet.create({
   previewAudioLabel: { fontSize: FONTS.sizes.sm, fontWeight: '600', color: COLORS.gray700 },
   previewAcoes: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   previewBtnEnviar: { backgroundColor: COLORS.primary, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-
-  // Input row
   gravandoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: SPACING.sm, paddingLeft: 4 },
   gravDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
   gravTimer: { fontSize: FONTS.sizes.sm, fontWeight: '700', color: '#991B1B', fontVariant: ['tabular-nums'] },

@@ -1,11 +1,11 @@
-// FeedAudio — Player de áudio minimalista estilo WhatsApp
-// Layout horizontal: play/pause redondo, barra de progresso fina, timestamp
+// FeedAudio — Player de áudio com waveform estilo premium
+// Layout horizontal: play/pause, waveform (barras), timestamp
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AudioModule, setAudioModeAsync } from 'expo-audio';
-import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { COLORS, SPACING } from '../constants/theme';
 
 const fmt = (s) => {
   if (!s || s === Infinity) return '0:00';
@@ -14,12 +14,23 @@ const fmt = (s) => {
   return `${m}:${seg}`;
 };
 
+// Gera alturas aleatórias consistentes para o waveform
+const WAVE_BARS = 24;
+const gerarWaveform = () => {
+  const arr = [];
+  for (let i = 0; i < WAVE_BARS; i++) {
+    arr.push(Math.floor(Math.random() * 16) + 4);
+  }
+  return arr;
+};
+
 export default function FeedAudio({ audioUrl }) {
   const [tocando, setTocando] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [tempoDecorrido, setTempoDecorrido] = useState(0);
   const playerRef = useRef(null);
   const timerRef = useRef(null);
+  const waveform = useMemo(() => gerarWaveform(), []);
 
   useEffect(() => { return () => { pararELimpar(); }; }, []);
   useEffect(() => { return () => { pararELimpar(); }; }, [audioUrl]);
@@ -56,19 +67,30 @@ export default function FeedAudio({ audioUrl }) {
           setProgresso((playerRef.current.currentTime || 0) / Math.max(playerRef.current.duration || 1, 1));
           setTempoDecorrido(playerRef.current.currentTime || 0);
         }
-      }, 500);
+      }, 200);
     } catch (e) { console.warn('[FeedAudio]', e.message); }
   }, [audioUrl, tocando]);
 
-  const pct = Math.min(Math.max(progresso * 100, 2), 100);
+  const barraAtiva = Math.floor(progresso * WAVE_BARS);
 
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.playBtn} activeOpacity={0.7} onPress={togglePlayback}>
-        <Ionicons name={tocando ? 'pause' : 'play'} size={14} color={COLORS.primary} style={{ marginLeft: tocando ? 0 : 2 }} />
+        <Ionicons name={tocando ? 'pause' : 'play'} size={12} color={COLORS.primary} style={{ marginLeft: tocando ? 0 : 1.5 }} />
       </TouchableOpacity>
-      <View style={styles.progressContainer}>
-        <View style={[styles.progressFill, { width: `${pct}%` }]} />
+      <View style={styles.waveformContainer}>
+        {waveform.map((altura, i) => (
+          <View
+            key={i}
+            style={[
+              styles.waveBar,
+              {
+                height: altura,
+                backgroundColor: i <= barraAtiva ? COLORS.primary : COLORS.gray300,
+              },
+            ]}
+          />
+        ))}
       </View>
       <Text style={styles.timer}>{fmt(tempoDecorrido)}</Text>
     </View>
@@ -79,37 +101,35 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xs,
+    gap: SPACING.sm,
   },
   playBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: COLORS.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.sm,
   },
-  progressContainer: {
+  waveformContainer: {
     flex: 1,
-    height: 2,
-    backgroundColor: COLORS.gray300,
-    borderRadius: 1,
-    marginRight: SPACING.sm,
-    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 20,
+    gap: 2,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 1,
+  waveBar: {
+    flex: 1,
+    borderRadius: 1.5,
+    minHeight: 3,
   },
   timer: {
     fontSize: 10,
     fontWeight: '500',
     color: COLORS.gray400,
     fontVariant: ['tabular-nums'],
-    minWidth: 32,
+    minWidth: 30,
     textAlign: 'right',
   },
 });
