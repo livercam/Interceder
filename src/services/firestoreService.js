@@ -418,20 +418,46 @@ export const editarMensagemChat = async (chatId, mensagemId, novoTexto) => {
  * @param {string} mensagemId - ID da mensagem
  */
 export const excluirMensagemChat = async (chatId, mensagemId) => {
-  const batch = writeBatch(db);
+  try {
+    const msgRef = doc(db, COLLECTIONS.CHATS, chatId, 'mensagens', mensagemId);
+    const msgSnap = await getDoc(msgRef);
 
-  // 1. Deleta a mensagem
-  const msgRef = doc(db, COLLECTIONS.CHATS, chatId, 'mensagens', mensagemId);
-  batch.delete(msgRef);
+    if (msgSnap.exists()) {
+      const msgData = msgSnap.data();
+      const midiaUrl = msgData.imagem_url || msgData.audio_url;
 
-  // 2. Atualiza resumo do chat
-  const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
-  batch.update(chatRef, {
-    ultima_mensagem: '🚫 Mensagem excluída',
-    timestamp_atualizacao: serverTimestamp(),
-  });
+      // 1. Se a mensagem contiver mídia, apaga do Storage primeiro
+      if (midiaUrl) {
+        try {
+          const storage = getStorage();
+          const arquivoRef = ref(storage, midiaUrl);
+          await deleteObject(arquivoRef);
+          console.log('[Exclusão] Mídia apagada do Storage com sucesso.');
+        } catch (storageErr) {
+          // Ignora erro 404 (arquivo já não existia) para não travar a exclusão
+          console.warn('[Exclusão] Erro ao apagar mídia do Storage:', storageErr.message);
+        }
+      }
 
-  await batch.commit();
+      // 2. Apaga o documento da mensagem do Firestore com batch
+      const batch = writeBatch(db);
+      batch.delete(msgRef);
+
+      const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+      batch.update(chatRef, {
+        ultima_mensagem: '🚫 Mensagem excluída',
+        timestamp_atualizacao: serverTimestamp(),
+      });
+
+      await batch.commit();
+      console.log('[Exclusão] Documento apagado do Firestore com sucesso.');
+    } else {
+      throw new Error('A mensagem não existe ou já foi apagada.');
+    }
+  } catch (error) {
+    console.error('[Erro Excluir Mensagem]', error);
+    throw new Error('Não foi possível excluir a mensagem no servidor.');
+  }
 };
 
 /**
