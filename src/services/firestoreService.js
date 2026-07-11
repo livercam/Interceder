@@ -419,44 +419,50 @@ export const editarMensagemChat = async (chatId, mensagemId, novoTexto) => {
  */
 export const excluirMensagemChat = async (chatId, mensagemId) => {
   try {
+    console.log('[Exclusão] 1. Iniciando processo. Chat:', chatId, 'Msg:', mensagemId);
     const msgRef = doc(db, COLLECTIONS.CHATS, chatId, 'mensagens', mensagemId);
     const msgSnap = await getDoc(msgRef);
 
-    if (msgSnap.exists()) {
-      const msgData = msgSnap.data();
-      const midiaUrl = msgData.imagem_url || msgData.audio_url;
-
-      // 1. Se a mensagem contiver mídia, apaga do Storage primeiro
-      if (midiaUrl) {
-        try {
-          const storage = getStorage();
-          const arquivoRef = ref(storage, midiaUrl);
-          await deleteObject(arquivoRef);
-          console.log('[Exclusão] Arquivo obliterado do Storage:', midiaUrl);
-        } catch (storageErr) {
-          // Ignora erro 404 (arquivo já não existia) para não travar a exclusão
-          console.warn('[Exclusão] Erro ao apagar mídia do Storage:', storageErr.message);
-        }
-      }
-
-      // 2. Apaga o documento da mensagem do Firestore com batch
-      const batch = writeBatch(db);
-      batch.delete(msgRef);
-
-      const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
-      batch.update(chatRef, {
-        ultima_mensagem: '🚫 Mensagem excluída',
-        timestamp_atualizacao: serverTimestamp(),
-      });
-
-      await batch.commit();
-      console.log('[Exclusão] Documento apagado do Firestore com sucesso.');
-    } else {
+    if (!msgSnap.exists()) {
+      console.log('[Exclusão] ERRO: Mensagem não encontrada no banco de dados.');
       throw new Error('A mensagem não existe ou já foi apagada.');
     }
+
+    const msgData = msgSnap.data();
+    const midiaUrl = msgData.imagem_url || msgData.audio_url;
+
+    // Passo A: Hard Delete no Storage (Se houver mídia)
+    if (midiaUrl) {
+      try {
+        console.log('[Exclusão] 2. Apagando mídia do Storage:', midiaUrl);
+        const storage = getStorage();
+        const arquivoRef = ref(storage, midiaUrl);
+        await deleteObject(arquivoRef);
+        console.log('[Exclusão] 2.1 Mídia obliterada do Storage.');
+      } catch (storageErr) {
+        console.warn('[Exclusão] 2.1 Erro no Storage (pode já estar apagado):', storageErr.message);
+      }
+    } else {
+      console.log('[Exclusão] 2. Nenhuma mídia anexa para apagar. Seguindo para o texto.');
+    }
+
+    // Passo B: Deletar o documento diretamente (Sem Batch para evitar colapso do WebChannel)
+    console.log('[Exclusão] 3. Apagando documento do Firestore...');
+    await deleteDoc(msgRef);
+    console.log('[Exclusão] 3.1 Documento apagado com sucesso.');
+
+    // Passo C: Atualizar a última mensagem do Chat
+    console.log('[Exclusão] 4. Atualizando resumo do chat pai...');
+    const chatRef = doc(db, COLLECTIONS.CHATS, chatId);
+    await updateDoc(chatRef, {
+      ultima_mensagem: '🚫 Mensagem excluída',
+      timestamp_atualizacao: serverTimestamp(),
+    });
+    console.log('[Exclusão] 4.1 Resumo atualizado. Processo finalizado com SUCESSO!');
+
   } catch (error) {
-    console.error('[Erro Excluir Mensagem]', error);
-    throw new Error('Não foi possível excluir a mensagem no servidor.');
+    console.error('[Erro Crítico Excluir Mensagem]', error);
+    throw new Error('Não foi possível excluir a mensagem no servidor. Tente novamente.');
   }
 };
 
