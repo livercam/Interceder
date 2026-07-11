@@ -13,6 +13,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -89,7 +90,16 @@ export default function Chat1x1Screen({ route }) {
   const gravadorRef = useRef(null);
   const timerGravRef = useRef(null);
   const [tocandoPreview, setTocandoPreview] = useState(false);
+  const [tecladoAlturaAndroid, setTecladoAlturaAndroid] = useState(0);
   const somPreviewRef = useRef(null);
+
+  // Listener estatico do teclado apenas no Android (evita Layout Thrashing do KAV)
+  useEffect(() => {
+    if (Platform.OS === 'ios') return;
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setTecladoAlturaAndroid(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setTecladoAlturaAndroid(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = ouvirMensagensChat(chatId, (msgs) => {
@@ -390,11 +400,13 @@ export default function Chat1x1Screen({ route }) {
   const isBotaoDesativado = !texto || texto.trim().length === 0 || enviando;
 
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior="padding" 
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
-    >
+    <View style={{ flex: 1, paddingBottom: Platform.OS === 'android' ? tecladoAlturaAndroid : 0 }}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior="padding" 
+        enabled={Platform.OS === 'ios'} 
+        keyboardVerticalOffset={90}
+      >
       {enviando && (
         <View style={styles.uploadingBar}>
           <ActivityIndicator size="small" color={COLORS.white} />
@@ -487,7 +499,8 @@ export default function Chat1x1Screen({ route }) {
           </View>
         )}
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
