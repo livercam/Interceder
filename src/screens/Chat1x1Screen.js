@@ -392,8 +392,8 @@ export default function Chat1x1Screen({ route }) {
   return (
     <KeyboardAvoidingView 
       style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior="padding" 
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
     >
       {enviando && (
         <View style={styles.uploadingBar}>
