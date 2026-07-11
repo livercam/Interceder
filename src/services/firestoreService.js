@@ -82,6 +82,8 @@ export const createUserProfile = async (uid, userData) => {
       ultima_oracao_semana: '',
       testemunhos: 0,
       endossos_recebidos: 0,
+      seguidores_count: 0,
+      seguindo_count: 0,
     },
     is_admin: false,
     push_notificacoes_activas: true,
@@ -114,6 +116,106 @@ export const salvarPushToken = async (userId, token) => {
     fcm_token: token,
     expo_push_token: token, // fallback para usuários antigos
   }, { merge: true });
+};
+
+// ============================================================
+// SEGUIR / SEGUIDORES (Sistema de Grafo Social)
+// ============================================================
+
+/**
+ * Verifica se um utilizador já segue outro.
+ * Busca o documento na subcoleção "seguindo" do utilizador atual.
+ *
+ * @param {string} meuUid - UID do utilizador atual
+ * @param {string} perfilUid - UID do perfil alvo
+ * @returns {Promise<boolean>} - true se já estiver seguindo
+ */
+export const verificarSeSegue = async (meuUid, perfilUid) => {
+  if (!meuUid || !perfilUid) return false;
+  try {
+    const docSnap = await getDoc(doc(db, COLLECTIONS.USERS, meuUid, 'seguindo', perfilUid));
+    return docSnap.exists();
+  } catch (error) {
+    console.warn('[verificarSeSegue] Erro:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Alterna o estado de seguir/deixar de seguir um utilizador.
+ * Usa runTransaction para garantir atomicidade das operações.
+ *
+ * Regras:
+ * - Não pode seguir a si mesmo.
+ * - Se NÃO estiver seguindo: cria doc em subcoleções, incrementa contadores.
+ * - Se JÁ estiver seguindo: deleta doc em subcoleções, decrementa contadores.
+ *
+ * Estrutura no Firestore:
+ * - users/{meuUid}/seguindo/{perfilUid} (documento vazio ou com metadados)
+ * - users/{perfilUid}/seguidores/{meuUid} (documento vazio ou com metadados)
+ * - users/{meuUid}.stats.seguindo_count (increment/decrement)
+ * - users/{perfilUid}.stats.seguidores_count (increment/decrement)
+ *
+ * @param {string} meuUid - UID do utilizador atual (quem está a seguir)
+ * @param {string} perfilUid - UID do perfil alvo (quem será seguido/deixado de seguir)
+ * @returns {Promise<boolean>} - true se passou a seguir, false se deixou de seguir
+ * @throws {Error} - Se tentar seguir a si mesmo
+ */
+export const toggleSeguirUsuario = async (meuUid, perfilUid) => {
+  if (meuUid === perfilUid) {
+    throw new Error('Você não pode seguir a si mesmo.');
+  }
+
+  let novoStatus = false;
+
+  await runTransaction(db, async (transaction) => {
+    const seguindoRef = doc(db, COLLECTIONS.USERS, meuUid, 'seguindo', perfilUid);
+    const seguidoresRef = doc(db, COLLECTIONS.USERS, perfilUid, 'seguidores', meuUid);
+    const meuRef = doc(db, COLLECTIONS.USERS, meuUid);
+    const perfilRef = doc(db, COLLECTIONS.USERS, perfilUid);
+
+    const [seguindoSnap, meuSnap, perfilSnap] = await Promise.all([
+      transaction.get(seguindoRef),
+      transaction.get(meuRef),
+      transaction.get(perfilRef),
+    ]);
+
+    if (!meuSnap.exists() || !perfilSnap.exists()) {
+      throw new Error('Utilizador não encontrado.');
+    }
+
+    const jaSegue = seguindoSnap.exists();
+
+    if (jaSegue) {
+      // Ação: DEIXAR DE SEGUIR
+      transaction.delete(seguindoRef);
+      transaction.delete(seguidoresRef);
+      transaction.update(meuRef, {
+        'stats.seguindo_count': increment(-1),
+      });
+      transaction.update(perfilRef, {
+        'stats.seguidores_count': increment(-1),
+      });
+      novoStatus = false;
+    } else {
+      // Ação: SEGUIR
+      transaction.set(seguindoRef, {
+        seguido_em: new Date().toISOString(),
+      });
+      transaction.set(seguidoresRef, {
+        segue_desde: new Date().toISOString(),
+      });
+      transaction.update(meuRef, {
+        'stats.seguindo_count': increment(1),
+      });
+      transaction.update(perfilRef, {
+        'stats.seguidores_count': increment(1),
+      });
+      novoStatus = true;
+    }
+  });
+
+  return novoStatus;
 };
 
 // ============================================================
