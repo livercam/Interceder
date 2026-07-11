@@ -31,10 +31,11 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
   const [dataEvento, setDataEvento] = useState('');
   const [horaEvento, setHoraEvento] = useState('');
   const [capaEventoUri, setCapaEventoUri] = useState(null);
+  const [linkEvento, setLinkEvento] = useState('');
 
   useEffect(() => { const s = Keyboard.addListener('keyboardDidShow', (e) => setTecladoAltura(e.endCoordinates.height)); const h = Keyboard.addListener('keyboardDidHide', () => setTecladoAltura(0)); return () => { s.remove(); h.remove(); }; }, []);
 
-  const reset = useCallback(() => { setTexto(''); setAnexo({ tipo: null, uri: null, dadosExtras: null }); setLinkUrl(''); setTituloEvento(''); setDataEvento(''); setHoraEvento(''); }, []);
+  const reset = useCallback(() => { setTexto(''); setAnexo({ tipo: null, uri: null, dadosExtras: null }); setLinkUrl(''); setTituloEvento(''); setDataEvento(''); setHoraEvento(''); setLinkEvento(''); }, []);
   const fechar = useCallback(() => { reset(); onFechar(); }, [onFechar, reset]);
   const removerAnexo = useCallback(() => { setAnexo({ tipo: null, uri: null, dadosExtras: null }); if (anexo.tipo === 'link') setLinkUrl(''); }, [anexo.tipo]);
 
@@ -101,6 +102,18 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
             onChangeText={setHoraEvento}
           />
 
+          <Text style={s.inputLabel}>🔗 Link do Evento (opcional)</Text>
+          <TextInput
+            style={s.input}
+            placeholder="Ex: https://meet.google.com/xxx"
+            placeholderTextColor="#B0B3B8"
+            value={linkEvento}
+            onChangeText={setLinkEvento}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+
           {/* Upload de Capa do Evento */}
           <Text style={s.inputLabel}>🖼️ Imagem de Capa (opcional)</Text>
           {capaEventoUri ? (
@@ -157,8 +170,9 @@ export default function ModalCriacaoPostagem({ visible, onFechar, onPostar }) {
           dadosExtras: {
             titulo_evento: tituloEvento.trim(),
             data_evento_texto: dataEvento.trim(),
-            data_iso: '',  // Será computado no backend ou pode ser digitado separadamente
+            data_iso: '',
             hora_evento: horaEvento.trim(),
+            link_evento: linkEvento.trim(),
             capa_evento_uri: capaEventoUri || '',
           },
         },

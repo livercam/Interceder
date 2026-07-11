@@ -43,6 +43,8 @@ import {
   entrarPorCodigoConvite,
   fixarConteudoEnsino,
   toggleInteresseEvento,
+  toggleCurtidaPostagem,
+  adicionarComentarioPostagem,
 } from '../services/firestoreService';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
@@ -175,7 +177,7 @@ function AdicionarConteudoModal({ visible, onClose, onAdicionar, modoEdicao, con
             {/* Gravador de Áudio */}
             {!ehEdicao && (
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>🎤 Mensagem de Voz (opcional)</Text>
+                <Text style={styles.inputLabel}>Mensagem de Voz (opcional)</Text>
                 <GravadorAudio
                   onAudioReady={(url) => setAudioUrl(url)}
                   onRemove={() => setAudioUrl('')}
@@ -231,7 +233,7 @@ const getIconePorLink = (link) => {
 // ============================================================
 function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const [celula, setCelula] = useState(null);
   const [membros, setMembros] = useState([]);
@@ -308,7 +310,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
 
     // Tratamento especial para Evento com upload de capa
     if (tipo_postagem === 'evento' && anexo?.dadosExtras) {
-      const { titulo_evento, data_evento_texto, data_iso, hora_evento, capa_evento_uri } = anexo.dadosExtras;
+      const { titulo_evento, data_evento_texto, data_iso, hora_evento, capa_evento_uri, link_evento } = anexo.dadosExtras;
       const tituloEvento = titulo_evento || 'Evento';
       let capaEventoUrl = '';
 
@@ -333,6 +335,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
         data_evento_texto: data_evento_texto || '',
         data_iso: data_iso || '',
         hora_evento: hora_evento || '',
+        link_evento: link_evento || '',
         capa_evento_url: capaEventoUrl,
         interessados_ids: [],
       });
@@ -548,6 +551,50 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
       console.warn('[CelulaDetalhes] Erro ao alternar interesse:', error.message);
     }
   }, [celulaId, user?.uid]);
+
+  // Handler para curtir/descurtir postagem
+  const handleLikePostagem = useCallback(async (conteudo) => {
+    if (!user?.uid) return;
+    try {
+      await toggleCurtidaPostagem(celulaId, conteudo, user.uid);
+    } catch (error) {
+      console.warn('[CelulaDetalhes] Erro ao curtir postagem:', error.message);
+    }
+  }, [celulaId, user?.uid]);
+
+  // Handler para compartilhar postagem (Share API nativa)
+  const handleSharePostagem = useCallback((postagem) => {
+    let textoParaCompartilhar = '';
+    if (postagem.tipo_postagem === 'evento') {
+      const dados = postagem.anexo?.dadosExtras || {};
+      textoParaCompartilhar = `📅 *${dados.titulo_evento || 'Evento'}*`;
+      if (dados.data_evento_texto) textoParaCompartilhar += `\n📆 ${dados.data_evento_texto}`;
+      if (dados.hora_evento) textoParaCompartilhar += `\n⏰ ${dados.hora_evento}`;
+    } else if (postagem.texto) {
+      textoParaCompartilhar = postagem.texto;
+    } else {
+      textoParaCompartilhar = '📖 Postagem da Célula no Interceder';
+    }
+    textoParaCompartilhar += '\n\n🙌 Venha fazer parte da nossa célula!\nAbra o app Interceder ou use o código de convite.\n🔗 interceder://celulas';
+    Share.share({ message: textoParaCompartilhar, title: 'Célula Interceder' }).catch(() => {});
+  }, []);
+
+  // Handler para comentar em uma postagem
+  const handleComentarPostagem = useCallback(async (conteudoParam, textoComentario) => {
+    if (!user?.uid || !userProfile?.nome || !textoComentario) return;
+    try {
+      await adicionarComentarioPostagem(
+        celulaId,
+        conteudoParam,
+        textoComentario,
+        user.uid,
+        userProfile.nome || user.displayName || 'Membro',
+        userProfile.foto_url || user.photoURL || null,
+      );
+    } catch (error) {
+      console.warn('[CelulaDetalhes] Erro ao comentar:', error.message);
+    }
+  }, [celulaId, user?.uid, userProfile, user]);
 
   if (loading) {
     return (
@@ -769,8 +816,10 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                   createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
                   texto: textoPostagem,
                   tipo_postagem: isEvento ? 'evento' : tipoIcone,
+                  curtidas_ids: conteudo.curtidas_ids || [],
+                  comentarios: conteudo.comentarios || [],
                   anexo: isEvento
-                    ? { tipo: 'evento', dadosExtras: { titulo_evento: dadosEvento?.titulo_evento, data_evento_texto: dadosEvento?.data_evento_texto || dadosEvento?.data_evento, data_iso: dadosEvento?.data_iso || '', hora_evento: dadosEvento?.hora_evento, capa_evento_url: dadosEvento?.capa_evento_url || '', interessados_ids: dadosEvento?.interessados_ids || [] } }
+                    ? { tipo: 'evento', dadosExtras: { titulo_evento: dadosEvento?.titulo_evento, data_evento_texto: dadosEvento?.data_evento_texto || dadosEvento?.data_evento, data_iso: dadosEvento?.data_iso || '', hora_evento: dadosEvento?.hora_evento, capa_evento_url: dadosEvento?.capa_evento_url || '', link_evento: dadosEvento?.link_evento || '', interessados_ids: dadosEvento?.interessados_ids || [] } }
                     : tipoIcone !== 'texto' && linkExterno ? { tipo: tipoIcone, uri: linkExterno, dadosExtras: { url: linkExterno, video_id: videoId, titulo: tituloPost, descricao: textoPostagem } } : null,
                 };
                 return (
@@ -783,9 +832,9 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                     onFixar={() => handleFixarPostagem(conteudo.id)}
                     onToggleInteresse={isEvento ? () => handleToggleInteresse(conteudo.id) : undefined}
                     onPressPerfil={() => {}}
-                    onLike={() => {}}
-                    onComment={() => {}}
-                    onShare={() => {}}
+                    onLike={() => handleLikePostagem(conteudo.id)}
+                    onComment={(texto) => handleComentarPostagem(conteudo, texto)}
+                    onShare={() => handleSharePostagem(postagemAdaptada)}
                     onEditar={() => handleAbrirEdicao(conteudo)}
                     onExcluir={async () => {
                       Alert.alert('Excluir postagem', 'Tem certeza?', [
@@ -868,7 +917,7 @@ function CelulaDetalhes({ celulaId, userUid, userTitulo, onVoltar }) {
                   createdAt: conteudo.criadoEm ? new Date(conteudo.criadoEm).toISOString() : new Date(),
                   texto: textoPostagem,
                   tipo_postagem: 'evento',
-                  anexo: { tipo: 'evento', dadosExtras: { titulo_evento: dadosEvento?.titulo_evento, data_evento_texto: dadosEvento?.data_evento_texto || dadosEvento?.data_evento, data_iso: dadosEvento?.data_iso || '', hora_evento: dadosEvento?.hora_evento, capa_evento_url: dadosEvento?.capa_evento_url || '', interessados_ids: dadosEvento?.interessados_ids || [] } },
+                  anexo: { tipo: 'evento', dadosExtras: { titulo_evento: dadosEvento?.titulo_evento, data_evento_texto: dadosEvento?.data_evento_texto || dadosEvento?.data_evento, data_iso: dadosEvento?.data_iso || '', hora_evento: dadosEvento?.hora_evento, capa_evento_url: dadosEvento?.capa_evento_url || '', link_evento: dadosEvento?.link_evento || '', interessados_ids: dadosEvento?.interessados_ids || [] } },
                 };
                 return (
                   <CardPostagem

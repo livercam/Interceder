@@ -852,6 +852,45 @@ export const fixarConteudoEnsino = async (celulaId, postId) => {
 };
 
 /**
+ * Alterna a curtida (like) de um usuário em uma postagem do feed da célula.
+ * Como os posts ficam dentro do array conteudos_ensino, esta função lê o array,
+ * encontra o item pelo id, alterna o userId no array curtidas_ids e salva
+ * substituindo o objeto antigo pelo novo (arrayRemove + arrayUnion).
+ *
+ * @param {string} celulaId - ID da célula
+ * @param {object} postagemOriginal - O objeto completo da postagem
+ * @param {string} userId - UID do usuário
+ * @returns {Promise<boolean>} - true se adicionou like, false se removeu
+ */
+export const toggleCurtidaPostagem = async (celulaId, postagemId, userId) => {
+  const celulaRef = doc(db, COLLECTIONS.CELULAS, celulaId);
+  const celulaSnap = await getDoc(celulaRef);
+
+  if (!celulaSnap.exists()) return;
+
+  const conteudos = celulaSnap.data().conteudos_ensino || [];
+  const index = conteudos.findIndex((c) => c.id === postagemId);
+  if (index === -1) return;
+
+  const postagem = conteudos[index];
+  const curtidas = postagem.curtidas_ids || [];
+  const jaCurtiu = curtidas.includes(userId);
+
+  if (jaCurtiu) {
+    postagem.curtidas_ids = curtidas.filter((id) => id !== userId);
+  } else {
+    postagem.curtidas_ids = [...curtidas, userId];
+  }
+
+  conteudos[index] = postagem;
+
+  // ÚNICO updateDoc com array completo — evita flickers de snapshot
+  await updateDoc(celulaRef, { conteudos_ensino: conteudos });
+
+  return !jaCurtiu;
+};
+
+/**
  * Alterna o interesse (RSVP) de um usuário em um evento de célula.
  * Como os eventos são serializados como JSON no campo mensagem dentro do array
  * conteudos_ensino, esta função lê o array atual, encontra o item pelo postId,
@@ -1052,6 +1091,55 @@ export const buscarUsuariosPorUsername = async (termo) => {
     nome: doc.data().nome,
     username: doc.data().username,
   }));
+};
+
+/**
+ * Adiciona um comentário a uma postagem do feed da célula.
+ * Como os posts ficam dentro do array conteudos_ensino, esta função
+ * lê o array, encontra o item pelo id, adiciona o comentário no array
+ * comentarios e substitui o objeto antigo pelo novo (arrayRemove + arrayUnion).
+ *
+ * @param {string} celulaId - ID da célula
+ * @param {object} postagemOriginal - O objeto completo da postagem
+ * @param {string} textoComentario - Texto do comentário
+ * @param {string} autorId - UID do autor do comentário
+ * @param {string} autorNome - Nome do autor do comentário
+ * @param {string|null} autorFoto - URL da foto do autor do comentário
+ * @returns {Promise<string>} - ID do comentário criado
+ */
+export const adicionarComentarioPostagem = async (celulaId, postagemId, textoComentario, autorId, autorNome, autorFoto = null) => {
+  const celulaRef = doc(db, COLLECTIONS.CELULAS, celulaId);
+  const celulaSnap = await getDoc(celulaRef);
+
+  if (!celulaSnap.exists()) {
+    throw new Error('Célula não encontrada.');
+  }
+
+  const conteudos = celulaSnap.data().conteudos_ensino || [];
+  const index = conteudos.findIndex((c) => c.id === postagemId);
+  if (index === -1) {
+    throw new Error('Postagem não encontrada.');
+  }
+
+  const postagem = conteudos[index];
+  const comentarios = postagem.comentarios || [];
+
+  const novoComentario = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    autor_id: autorId,
+    autor_nome: autorNome,
+    autor_foto_url: autorFoto || null,
+    texto: (textoComentario || '').trim().substring(0, 500),
+    criadoEm: new Date().toISOString(),
+  };
+
+  postagem.comentarios = [...comentarios, novoComentario];
+  conteudos[index] = postagem;
+
+  // ÚNICO updateDoc com array completo
+  await updateDoc(celulaRef, { conteudos_ensino: conteudos });
+
+  return novoComentario.id;
 };
 
 /**

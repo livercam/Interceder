@@ -1,6 +1,6 @@
 // CardPostagem — Casca Comum (Header + Miolo + Footer)
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, TextInput, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { formatarNomeCurto } from '../utils/formatters';
@@ -86,7 +86,7 @@ const MioloPostagem = ({ postagem, isFixado }) => {
   }
 };
 
-// Componente de Evento com capa, badges e contador de interesse
+// Componente de Evento com capa, badges, botão de link e contador de interesse
 const CardEventoBanner = ({ postagem, isFixado, userId, onToggleInteresse }) => {
   const dados = postagem.anexo?.dadosExtras || {};
   const titulo = dados.titulo_evento || 'Evento';
@@ -94,9 +94,19 @@ const CardEventoBanner = ({ postagem, isFixado, userId, onToggleInteresse }) => 
   const hora = dados.hora_evento || '';
   const capaUrl = dados.capa_evento_url || '';
   const dataIso = dados.data_iso || '';
+  const linkEvento = dados.link_evento || '';
   const interessadosIds = dados.interessados_ids || [];
   const jaTemInteresse = userId && interessadosIds.includes(userId);
   const statusBadge = getStatusEvento(dataIso);
+
+  const handleAbrirLinkEvento = () => {
+    let url = linkEvento;
+    if (!url) return;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    Linking.openURL(url).catch(() => console.warn('Não foi possível abrir o link do evento.'));
+  };
 
   return (
     <View>
@@ -146,6 +156,14 @@ const CardEventoBanner = ({ postagem, isFixado, userId, onToggleInteresse }) => 
         </View>
       </View>
 
+      {/* Botão de Link do Evento */}
+      {linkEvento ? (
+        <TouchableOpacity style={s.eventoLinkBtn} onPress={handleAbrirLinkEvento} activeOpacity={0.7}>
+          <Ionicons name="link-outline" size={18} color="#A53F36" />
+          <Text style={s.eventoLinkBtnText}>Acessar Link do Evento</Text>
+        </TouchableOpacity>
+      ) : null}
+
       {/* Botão de Interesse */}
       {onToggleInteresse && (
         <TouchableOpacity
@@ -179,14 +197,42 @@ export default function CardPostagem({ postagem, userId, podeGerenciar, isFixado
 
   const [menuVisivel, setMenuVisivel] = useState(false);
   const [opcoesMenu, setOpcoesMenu] = useState([]);
+  const [mostrarComentarios, setMostrarComentarios] = useState(false);
+  const [novoComentario, setNovoComentario] = useState('');
+
+  // ============================================================
+  // Optimistic UI - Curtir (elimina flicker)
+  // ============================================================
+  const curtidoInicialmente = userId && postagem.curtidas_ids?.includes(userId);
+  const [isLikedLocal, setIsLikedLocal] = useState(curtidoInicialmente);
+  const [likesCountLocal, setLikesCountLocal] = useState(postagem.curtidas_ids?.length || 0);
+
+  // Sincronizar caso a prop venha atualizada do pai (onSnapshot)
+  useEffect(() => {
+    setIsLikedLocal(curtidoInicialmente);
+    setLikesCountLocal(postagem.curtidas_ids?.length || 0);
+  }, [postagem.curtidas_ids, userId]);
+
+  const handleCurtirOtimista = () => {
+    setIsLikedLocal(!isLikedLocal);
+    setLikesCountLocal(prev => isLikedLocal ? prev - 1 : prev + 1);
+    onLike?.();
+  };
+
+  // Contador de comentários (vem da prop postagem)
+  const totalComentarios = postagem.comentarios?.length || 0;
+  const comentarios = postagem.comentarios || [];
+
+  const handleEnviarComentario = () => {
+    const texto = novoComentario.trim();
+    if (!texto) return;
+    onComment?.(texto);
+    setNovoComentario('');
+  };
 
   const abrirMenu = () => {
     const ops = [];
     ops.push({ texto: `📌 ${isFixado ? 'Desfixar' : 'Fixar'}`, aoPressionar: () => onFixar?.(postagem.id) });
-    // Editar temporariamente desabilitado por decisão da administração
-    // if (ehAutor) {
-    //   ops.push({ texto: '✏️ Editar', aoPressionar: () => onEditar?.(postagem) });
-    // }
     if (ehAutor) {
       ops.push({ texto: '🗑️ Excluir', destrutivo: true, aoPressionar: () => onExcluir?.(postagem) });
     }
@@ -202,7 +248,6 @@ export default function CardPostagem({ postagem, userId, podeGerenciar, isFixado
       {ehEvento ? (
         <>
           <CardEventoBanner postagem={postagem} isFixado={isFixado} userId={userId} onToggleInteresse={onToggleInteresse} />
-          {/* Kebab menu visível apenas para líder/co-líder */}
           {podeGerenciar && (
             <TouchableOpacity style={s.eventoKebab} onPress={abrirMenu} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="ellipsis-horizontal" size={20} color="#65676B" />
@@ -231,7 +276,6 @@ export default function CardPostagem({ postagem, userId, podeGerenciar, isFixado
                 <Text style={s.postTime}>{getTempoRelativo(createdAt)}</Text>
               </View>
             </TouchableOpacity>
-            {/* Kebab menu visível apenas para líder/co-líder */}
             {podeGerenciar && (
               <TouchableOpacity onPress={abrirMenu} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="ellipsis-horizontal" size={20} color="#65676B" />
@@ -240,19 +284,77 @@ export default function CardPostagem({ postagem, userId, podeGerenciar, isFixado
           </View>
           <MioloPostagem postagem={postagem} isFixado={isFixado} />
           <View style={s.cardFooter}>
-            <TouchableOpacity style={s.actionButton} onPress={() => onLike?.(postagem)} activeOpacity={0.7}>
-              <Ionicons name="heart-outline" size={20} color="#65676B" />
-              <Text style={s.actionText}>Curtir</Text>
+            <TouchableOpacity style={s.actionButton} onPress={handleCurtirOtimista} activeOpacity={0.7}>
+              <Ionicons name={isLikedLocal ? "heart" : "heart-outline"} size={20} color={isLikedLocal ? "#E53E3E" : "#65676B"} />
+              <Text style={[s.actionText, isLikedLocal && s.actionTextAtivo]}>
+                {likesCountLocal > 0 ? `${likesCountLocal} ` : ''}Curtir
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.actionButton} onPress={() => onComment?.(postagem)} activeOpacity={0.7}>
+            <TouchableOpacity style={s.actionButton} onPress={() => { setMostrarComentarios(!mostrarComentarios); }} activeOpacity={0.7}>
               <Ionicons name="chatbubble-outline" size={20} color="#65676B" />
-              <Text style={s.actionText}>Comentar</Text>
+              <Text style={s.actionText}>
+                {totalComentarios > 0 ? `${totalComentarios} ` : ''}Comentar
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.actionButton} onPress={() => onShare?.(postagem)} activeOpacity={0.7}>
-              <Ionicons name="share-outline" size={20} color="#65676B" />
-              <Text style={s.actionText}>Compartilhar</Text>
-            </TouchableOpacity>
+            {false && (
+              <TouchableOpacity style={s.actionButton} onPress={() => onShare?.(postagem)} activeOpacity={0.7}>
+                <Ionicons name="share-outline" size={20} color="#65676B" />
+                <Text style={s.actionText}>Compartilhar</Text>
+              </TouchableOpacity>
+            )}
           </View>
+
+          {/* ============================================ */}
+          {/* SEÇÃO DE COMENTÁRIOS */}
+          {/* ============================================ */}
+          {mostrarComentarios && (
+            <View style={s.comentariosSection}>
+              {/* Lista de Comentários */}
+              {comentarios.length > 0 ? (
+                comentarios.map((comentario) => (
+                  <View key={comentario.id} style={s.comentarioItem}>
+                    {comentario.autor_foto_url ? (
+                      <Image source={{ uri: comentario.autor_foto_url }} style={s.comentarioAvatar} />
+                    ) : (
+                      <View style={[s.comentarioAvatar, { backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
+                        <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>
+                          {comentario.autor_nome?.charAt(0)?.toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={s.comentarioBaloon}>
+                      <Text style={s.comentarioAutorNome}>{comentario.autor_nome}</Text>
+                      <Text style={s.comentarioTexto}>{comentario.texto}</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={s.semComentariosText}>Nenhum comentário ainda. Seja o primeiro!</Text>
+              )}
+
+              {/* Input de Comentário */}
+              <View style={s.comentarioInputRow}>
+                <TextInput
+                  style={s.comentarioInput}
+                  placeholder="Escreva um comentário..."
+                  placeholderTextColor="#94A3B8"
+                  value={novoComentario}
+                  onChangeText={setNovoComentario}
+                  multiline={false}
+                  returnKeyType="send"
+                  onSubmitEditing={handleEnviarComentario}
+                />
+                <TouchableOpacity
+                  style={[s.comentarioEnviarBtn, !novoComentario.trim() && s.comentarioEnviarBtnDisabled]}
+                  onPress={handleEnviarComentario}
+                  disabled={!novoComentario.trim()}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="send" size={18} color={novoComentario.trim() ? '#A53F36' : '#CBD5E1'} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </>
       )}
     </View>
@@ -270,6 +372,7 @@ const s = StyleSheet.create({
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderColor: '#E4E6EB', paddingTop: 12, marginTop: 4 },
   actionButton: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center', paddingVertical: 6 },
   actionText: { fontSize: 14, fontWeight: '600', color: '#65676B', marginLeft: 6 },
+  actionTextAtivo: { color: '#E53E3E' },
 
   // Tag Fixada
   fixadoTag: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
@@ -293,6 +396,10 @@ const s = StyleSheet.create({
   eventoIconBox: { width: 60, height: 60, borderRadius: 12, backgroundColor: 'rgba(165, 63, 54, 0.1)', justifyContent: 'center', alignItems: 'center' },
   eventoKebab: { position: 'absolute', top: 8, right: 8, zIndex: 10 },
 
+  // Botão de Link do Evento
+  eventoLinkBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: '#A53F36', backgroundColor: '#FFF' },
+  eventoLinkBtnText: { fontSize: 13, fontWeight: '600', color: '#A53F36', marginLeft: 6 },
+
   // Botão de Interesse
   interesseBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: '#A53F36', backgroundColor: '#FFF' },
   interesseBtnAtivo: { backgroundColor: '#A53F36', borderColor: '#A53F36' },
@@ -300,6 +407,19 @@ const s = StyleSheet.create({
   interesseBtnTextAtivo: { color: '#FFF' },
   interesseCount: { fontSize: 12, color: '#A53F36', fontWeight: '700', marginLeft: 4, backgroundColor: 'rgba(165,63,54,0.1)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 },
   interesseCountAtivo: { color: '#FFF', backgroundColor: 'rgba(255,255,255,0.2)' },
+
+  // Seção de Comentários
+  comentariosSection: { borderTopWidth: 1, borderColor: '#E4E6EB', paddingTop: 12, marginTop: 8 },
+  comentarioItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  comentarioAvatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8 },
+  comentarioBaloon: { flex: 1, backgroundColor: '#F1F5F9', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  comentarioAutorNome: { fontSize: 13, fontWeight: 'bold', color: '#1C1E21', marginBottom: 2 },
+  comentarioTexto: { fontSize: 13, color: '#334155', lineHeight: 18 },
+  semComentariosText: { fontSize: 13, color: '#94A3B8', fontStyle: 'italic', textAlign: 'center', marginVertical: 16 },
+  comentarioInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  comentarioInput: { flex: 1, backgroundColor: '#F1F5F9', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: '#1C1E21', maxHeight: 42 },
+  comentarioEnviarBtn: { marginLeft: 8, width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  comentarioEnviarBtnDisabled: { opacity: 0.5 },
 
   // Menu Modal
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
