@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import React, { useEffect, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { StyleSheet, Platform, Text, TextInput } from 'react-native';
 import * as NavigationBar from 'expo-navigation-bar';
 import {
@@ -74,12 +75,14 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
-       <AuthProvider>
-         <AlertProvider>
-           <StatusBar style="light" />
-           <AppNavigator />
-         </AlertProvider>
-       </AuthProvider>
+       <KeyboardProvider>
+         <AuthProvider>
+           <AlertProvider>
+             <StatusBar style="light" />
+             <AppNavigator />
+           </AlertProvider>
+         </AuthProvider>
+       </KeyboardProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
