@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, TouchableOpacity, Platform, TextInput, Text } from 'react-native';
 import { GiftedChat, Bubble } from 'react-native-gifted-chat';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView, KeyboardController } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { requestRecordingPermissionsAsync, setAudioModeAsync, AudioModule } from 'expo-audio';
@@ -36,6 +36,11 @@ export default function ChatGiftedScreen({ route }) {
 
   const gravadorRef = useRef(null);
   const timerGravRef = useRef(null);
+
+  // Garante que o teclado empurre a tela (modo pan)
+  useEffect(() => {
+    KeyboardController.setDefaultMode('pan');
+  }, []);
 
   // Limpeza ao desmontar
   useEffect(() => {
@@ -265,12 +270,12 @@ export default function ChatGiftedScreen({ route }) {
     const isMyMessage = props.currentMessage.user._id === currentUser.uid;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Bubble {...props} />
         {isMyMessage && (
-          <TouchableOpacity onPress={() => solicitarConfirmacaoExclusao(props.currentMessage)} style={{ padding: 4, marginRight: 4 }}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+          <TouchableOpacity onPress={() => solicitarConfirmacaoExclusao(props.currentMessage)} style={{ padding: 4, marginLeft: 4 }}>
+            <Ionicons name="ellipsis-vertical" size={16} color="#999" />
           </TouchableOpacity>
         )}
-        <Bubble {...props} />
       </View>
     );
   }, [currentUser, solicitarConfirmacaoExclusao]);
@@ -283,6 +288,7 @@ export default function ChatGiftedScreen({ route }) {
       behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'android' ? 30 : 0}
     >
+      {/* 1. Área de Mensagens */}
       <View style={{ flex: 1 }}>
         <GiftedChat
           messages={mensagens}
@@ -295,13 +301,14 @@ export default function ChatGiftedScreen({ route }) {
         />
       </View>
 
+      {/* 2. Nossa Barra Customizada */}
       <View style={{
         backgroundColor: '#ffffff',
         borderTopWidth: 1,
         borderTopColor: '#E5E5EA',
         paddingHorizontal: 8,
         paddingVertical: 6,
-        paddingBottom: Platform.OS === 'ios' ? insets.bottom + 6 : insets.bottom + 30,
+        paddingBottom: Platform.OS === 'ios' ? insets.bottom + 6 : insets.bottom + 10,
       }}>
         {audioPreview ? (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
