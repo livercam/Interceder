@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   timer: {
     fontSize: 10,
     fontWeight: '500',
-    color: COLORS.gray400,
+    color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
     minWidth: 30,
     textAlign: 'right',

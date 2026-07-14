@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, TouchableOpacity, Platform, TextInput, Text } from 'react-native';
 import { GiftedChat, Bubble } from 'react-native-gifted-chat';
-import { KeyboardAvoidingView, KeyboardController } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { requestRecordingPermissionsAsync, setAudioModeAsync, AudioModule } from 'expo-audio';
@@ -36,11 +36,6 @@ export default function ChatGiftedScreen({ route }) {
 
   const gravadorRef = useRef(null);
   const timerGravRef = useRef(null);
-
-  // Garante que o teclado empurre a tela (modo pan)
-  useEffect(() => {
-    KeyboardController.setDefaultMode('pan');
-  }, []);
 
   // Limpeza ao desmontar
   useEffect(() => {
@@ -259,21 +254,24 @@ export default function ChatGiftedScreen({ route }) {
   const renderMessageAudio = useCallback((props) => {
     if (!props.currentMessage.audio) return null;
     return (
-      <View style={{ padding: 5, minWidth: 160 }}>
+      <View style={{ padding: 5, minWidth: 180 }}>
         <FeedAudio audioUrl={props.currentMessage.audio} />
       </View>
     );
   }, []);
 
-  // ===== RENDER BUBBLE =====
+  // ===== RENDER BUBBLE (Versão Estável) =====
   const renderBubble = useCallback((props) => {
     const isMyMessage = props.currentMessage.user._id === currentUser.uid;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Bubble {...props} />
         {isMyMessage && (
-          <TouchableOpacity onPress={() => solicitarConfirmacaoExclusao(props.currentMessage)} style={{ padding: 4, marginLeft: 4 }}>
-            <Ionicons name="ellipsis-vertical" size={16} color="#999" />
+          <TouchableOpacity
+            onPress={() => solicitarConfirmacaoExclusao(props.currentMessage)}
+            style={{ padding: 4, marginLeft: 4 }}
+          >
+            <Ionicons name="ellipsis-vertical-sharp" size={16} color="#999" />
           </TouchableOpacity>
         )}
       </View>
